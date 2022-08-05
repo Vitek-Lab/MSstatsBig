@@ -98,7 +98,7 @@ cleanBigSpectronaut = function(file_path, output_directory,
         psm_data = psm_data[IsotopeLabelType == "H"]
       }
       psm_data
-    }, shardby = c("ProteinName"), overwrite = TRUE, backend = "readr",
+    }, overwrite = TRUE, backend = "readr",
     chunk_reader = "readr", delim = "\t",
     in_chunk_size = 1e6)
   TRUE
@@ -116,13 +116,13 @@ cleanBigSpectronaut = function(file_path, output_directory,
 saveSpectronautCSV = function(folder_path, output_file, heavy_only = FALSE) {
   disk.frame::setup_disk.frame(workers = 1)
   disk_frame = disk.frame::disk.frame(folder_path)
-  disk.frame::cmap(disk_frame, function(chunk) {
+  disk.frame::cimap(disk_frame, function(chunk, id) {
     if (heavy_only) {
       chunk = chunk[chunk$IsotopeLabelType == "H", ]
     }
     data.table::fwrite(chunk, output_file, append = TRUE)
-    NULL
-  }, lazy=FALSE)
+    chunk
+  }, lazy = FALSE)
   disk.frame::setup_disk.frame() # turn multi worker back on
   TRUE
 }
