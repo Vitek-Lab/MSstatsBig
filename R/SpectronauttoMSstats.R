@@ -56,7 +56,7 @@ cleanBigSpectronautArrow = function(input_file, output_path,
   input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                  ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
                  Intensity, EGQvalue, PGQvalue)
-  write_csv_arrow(input, file = output_path)
+  arrow::write_csv_arrow(input, file = output_path)
   TRUE
 }
 
