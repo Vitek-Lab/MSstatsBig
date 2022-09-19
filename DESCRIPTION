@@ -15,4 +15,5 @@ Imports:
     data.table,
     disk.frame,
     dplyr,
+    ggplot2,
     MSstatsConvert

@@ -313,6 +313,7 @@ MSstatsPrepareForLabeledSummarization = function(input, method, impute, censored
 }
 
 #' Plot protein-level summaries separately for heavy and light features
+#' @import ggplot2
 #' @export
 plotLabeledProfiles = function(summarized, proteins) {
   protein_level = summarized[["ProteinLevelData"]][summarized[["ProteinLevelData"]][["Protein"]] %in% proteins, ]
@@ -326,6 +327,7 @@ plotLabeledProfiles = function(summarized, proteins) {
   setnames(feature_level,
            c("RUN", "PROTEIN", "FEATURE", "LABEL", "newABUNDANCE", "GROUP"),
            c("Run", "ProteinName", "PSM", "Label", "LogIntensity", "Condition"))
+  feature_level = feature_level[LogIntensity > 0]
 
   ggplot(feature_level,
          aes(x = Run, y = LogIntensity, group = paste(PSM, Label))) +
