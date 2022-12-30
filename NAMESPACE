@@ -2,12 +2,8 @@
 
 export(BigSpectronauttoMSstatsFormat)
 export(BigSpectronauttoMSstatsFormatSplit)
-export(DiskFrameSetup)
 export(cleanBigSpectronaut)
-export(cleanBigSpectronautArrow)
 export(cleanBigSpectronautArrowSplit)
 export(dataProcessLabeled)
 export(plotLabeledProfiles)
-export(saveSpectronautCSV)
-import(data.table)
 import(ggplot2)

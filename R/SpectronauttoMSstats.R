@@ -1,10 +1,10 @@
 #' @export
-cleanBigSpectronautArrow = function(input_file, output_path,
-                                    intensity = "F.PeakArea",
-                                    filter_by_excluded = TRUE,
-                                    filter_by_identified = TRUE,
-                                    filter_by_qvalue = TRUE,
-                                    qvalue_cutoff = 0.01) {
+cleanBigSpectronaut = function(input_file, output_path,
+                               intensity = "F.PeakArea",
+                               filter_by_excluded = TRUE,
+                               filter_by_identified = TRUE,
+                               filter_by_qvalue = TRUE,
+                               qvalue_cutoff = 0.01) {
   input = arrow::open_dataset(input_file, format = "tsv")
   cols = c("R.FileName", "R.Condition", "R.Replicate",
            "PG.ProteinAccessions", "EG.ModifiedSequence", "FG.LabeledSequence",
@@ -54,8 +54,8 @@ cleanBigSpectronautArrow = function(input_file, output_path,
   input = dplyr::mutate(input, IsLabeled = grepl("Lys8", LabeledSequence) | grepl("Arg10", LabeledSequence))
   input = dplyr::mutate(input, IsotopeLabelType := if_else(IsLabeled, "H", "L"))
   input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
-                 ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
-                 Intensity, EGQvalue, PGQvalue)
+                        ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
+                        Intensity, EGQvalue, PGQvalue)
   arrow::write_csv_arrow(input, file = output_path)
   TRUE
 }
@@ -71,7 +71,7 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_path) {
   input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                           ProductCharge, IsotopeLabelType)
   observation_counts = dplyr::summarize(input, NumObs = sum(!is.na(Intensity) & Intensity > 0))
-  observation_counts = dplyr::filter(observation_counts, NumObs > 1)
+  observation_counts = dplyr::filter(observation_counts, NumObs > 0)
   observation_counts = dplyr::select(observation_counts, -NumObs)
   input = dplyr::inner_join(input, observation_counts,
                             by = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
@@ -90,8 +90,8 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_path) {
 
   input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                           ProductCharge, IsotopeLabelType)
-  observation_counts = dplyr::summarize(input, NumObs = sum(!is.na(Intensity) & Intensity > 0))
-  observation_counts = dplyr::filter(observation_counts, NumObs > 0)  # should be 1
+  observation_counts = dplyr::summarize(input, NumObs = sum(!is.na(Intensity) & Intensity > 1))
+  observation_counts = dplyr::filter(observation_counts, NumObs > 2)
   observation_counts = dplyr::select(observation_counts, -NumObs)
   input = dplyr::inner_join(input, observation_counts,
                             by = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",

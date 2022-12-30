@@ -17,3 +17,7 @@ Imports:
     dplyr,
     ggplot2,
     MSstatsConvert
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
