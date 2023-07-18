@@ -1,9 +1,9 @@
 # MSstatsBig
 
 MSstatsBig provides support for very large data files which either do not fit 
-into astandard computer's memory, or take a very long time to process. These 
+into a standard computer's memory, or take a very long time to process. These 
 data files are generally the output of spectral processing tools, such as 
-Spectronaut. This workflow was designed with DIA experiments in mind.
+Spectronaut or FragPipe. This workflow was designed with DIA experiments in mind.
 
 ## Installation 
 
