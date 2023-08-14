@@ -2,8 +2,11 @@
 
 export(BigSpectronauttoMSstatsFormat)
 export(BigSpectronauttoMSstatsFormatSplit)
+export(FragPipetoMSstatsFormat)
 export(cleanBigSpectronaut)
 export(cleanBigSpectronautArrowSplit)
 export(dataProcessLabeled)
+export(int_to_string_mapper)
 export(plotLabeledProfiles)
+export(string_to_int_mapper)
 import(ggplot2)
