@@ -102,9 +102,31 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_path) {
 
 #' @export
 #'
-FragPipetoMSstatsFormat = function(input_file,
+BigFragPipetoMSstatsFormat = function(input_file,
                                    max_feature_count=20) {
   input = arrow::open_dataset(input_file, format = "csv")
+
+  input = dplyr::mutate(input, Feature=paste(PeptideSequence, PrecursorCharge,
+                                             FragmentIon, ProductCharge, sep="_"))
+
+  feature_counts = dplyr::group_by(input, ProteinName, Feature)
+  feature_counts = dplyr::summarize(feature_counts,
+                                    MeanAbundance = mean(Intensity, na.rm=TRUE))
+
+  feature_counts = sparklyr::collect(feature_counts)
+
+  feature_counts = dplyr::mutate(feature_counts,
+                                 feature_rank = dplyr::min_rank(MeanAbundance))
+
+  feature_counts = dplyr::filter(feature_counts,
+                                 feature_rank <= max_feature_count)
+
+  feature_counts = dplyr::select(feature_counts, -MeanAbundance, -feature_rank)
+  input = dplyr::inner_join(input, feature_counts,
+                            by = c("ProteinName", "Feature"))
+  input = dplyr::select(input, -Feature)
+  input = sparklyr::collect(input)
+
 
   # input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
   #                         FragmentIon, ProductCharge, IsotopeLabelType)
@@ -119,13 +141,14 @@ FragPipetoMSstatsFormat = function(input_file,
   #
   # pp_df = dplyr::select(input, ProteinName, PeptideSequence)
   # pp_df = dplyr::group_by(pp_df, PeptideSequence)
-  # pp_df = dplyr::summarize(pp_df, NumProteins = n_distinct(ProteinName))
+  # pp_df = dplyr::summarize(pp_df, NumProteins = dplyr::n_distinct(ProteinName))
   # pp_df = dplyr::filter(pp_df, NumProteins == 1)
   # pp_df = dplyr::select(pp_df, -NumProteins)
   # input = dplyr::inner_join(input, pp_df, by = "PeptideSequence")
   #
   # input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
-  #                         FragmentIon, ProductCharge, IsotopeLabelType, Run)
+  #                         FragmentIon, ProductCharge, IsotopeLabelType, Run,
+  #                         Condition, BioReplicate)
   # input = dplyr::summarize(input, Intensity = max(Intensity))
   #
   # input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
@@ -140,28 +163,6 @@ FragPipetoMSstatsFormat = function(input_file,
   #                                  "PrecursorCharge", "FragmentIon",
   #                                  "ProductCharge", "IsotopeLabelType"))
 
-  input = dplyr::mutate(input, Feature=paste(PeptideSequence, PrecursorCharge,
-                                             FragmentIon, ProductCharge, sep="_"))
-
-  feature_counts = dplyr::group_by(input, ProteinName, Feature)
-  feature_counts = dplyr::summarize(feature_counts,
-                                    MeanAbundance = mean(Intensity, na.rm=TRUE))
-
-  feature_counts = sparklyr::collect(feature_counts )
-
-
-  feature_counts = dplyr::mutate(feature_counts,
-                                 feature_rank = dplyr::min_rank(MeanAbundance))
-
-  feature_counts = dplyr::filter(feature_counts,
-                                 feature_rank <= max_feature_count)
-
-  feature_counts = dplyr::select(feature_counts, -MeanAbundance)
-  input = dplyr::inner_join(input, feature_counts,
-                            by = c("ProteinName", "Feature"))
-  input = dplyr::select(input, -Feature)
-
   # arrow::write_csv_arrow(input, output_path)
-  input = sparklyr::collect(input)
   return(input)
 }
