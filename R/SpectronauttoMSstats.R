@@ -116,7 +116,7 @@ BigFragPipetoMSstatsFormat = function(input_file,
   feature_counts = sparklyr::collect(feature_counts)
 
   feature_counts = dplyr::mutate(feature_counts,
-                                 feature_rank = dplyr::min_rank(MeanAbundance))
+                                 feature_rank = dplyr::min_rank(desc(MeanAbundance)))
 
   feature_counts = dplyr::filter(feature_counts,
                                  feature_rank <= max_feature_count)
