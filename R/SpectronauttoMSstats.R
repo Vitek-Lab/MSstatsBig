@@ -63,7 +63,7 @@ cleanBigSpectronaut = function(input_file, output_path,
 
 #' @export
 #'
-BigSpectronauttoMSstatsFormat = function(input_file, output_path) {
+MSstatsPreprocessBig = function(input_file, output_path) {
   input = arrow::open_dataset(input_file, format = "csv")
   input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                         ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition, Intensity)
