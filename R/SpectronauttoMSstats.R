@@ -113,7 +113,7 @@ BigFragPipetoMSstatsFormat = function(input_file,
   feature_counts = dplyr::summarize(feature_counts,
                                     MeanAbundance = mean(Intensity, na.rm=TRUE))
 
-  feature_counts = sparklyr::collect(feature_counts)
+  feature_counts = dplyr::collect(feature_counts)
 
   feature_counts = dplyr::mutate(feature_counts,
                                  feature_rank = dplyr::min_rank(dplyr::desc(MeanAbundance)))
@@ -125,7 +125,7 @@ BigFragPipetoMSstatsFormat = function(input_file,
   input = dplyr::inner_join(input, feature_counts,
                             by = c("ProteinName", "Feature"))
   input = dplyr::select(input, -Feature)
-  input = sparklyr::collect(input)
+  input = dplyr::collect(input)
 
 
   # input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
