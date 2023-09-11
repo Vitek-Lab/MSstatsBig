@@ -14,6 +14,7 @@ Imports:
     arrow,
     data.table,
     dplyr,
+    sparklyr,
     ggplot2,
     MSstatsConvert
 Suggests: 
