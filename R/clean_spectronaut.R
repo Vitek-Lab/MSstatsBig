@@ -1,5 +1,5 @@
-#' @export
-cleanBigSpectronaut = function(input_file, output_path,
+#' @keywords internal
+reduceBigSpectronaut = function(input_file, output_path,
                                intensity = "F.PeakArea",
                                filter_by_excluded = TRUE,
                                filter_by_identified = TRUE,
@@ -56,47 +56,6 @@ cleanBigSpectronaut = function(input_file, output_path,
   input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                         ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
                         Intensity, EGQvalue, PGQvalue)
-  arrow::write_csv_arrow(input, file = output_path, batch_size=)
+  arrow::write_csv_arrow(input, file = output_path)
   TRUE
 }
-
-
-#' @export
-#'
-MSstatsPreprocessBig = function(input_file, output_path) {
-  input = arrow::open_dataset(input_file, format = "csv")
-  input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
-                        ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition, Intensity)
-  input = dplyr::select(input, -BioReplicate, -Condition)
-  input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
-                          ProductCharge, IsotopeLabelType)
-  observation_counts = dplyr::summarize(input, NumObs = sum(!is.na(Intensity) & Intensity > 0))
-  observation_counts = dplyr::filter(observation_counts, NumObs > 0)
-  observation_counts = dplyr::select(observation_counts, -NumObs)
-  input = dplyr::inner_join(input, observation_counts,
-                            by = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
-                                   "ProductCharge", "IsotopeLabelType"))
-
-  pp_df = dplyr::select(input, ProteinName, PeptideSequence)
-  pp_df = dplyr::group_by(pp_df, PeptideSequence)
-  pp_df = dplyr::summarize(pp_df, NumProteins = n_distinct(ProteinName))
-  pp_df = dplyr::filter(pp_df, NumProteins == 1)
-  pp_df = dplyr::select(pp_df, -NumProteins)
-  input = dplyr::inner_join(input, pp_df, by = "PeptideSequence")
-
-  input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
-                          FragmentIon, ProductCharge, IsotopeLabelType, Run)
-  input = dplyr::summarize(input, Intensity = max(Intensity))
-
-  input = dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
-                          ProductCharge, IsotopeLabelType)
-  observation_counts = dplyr::summarize(input, NumObs = sum(!is.na(Intensity) & Intensity > 1))
-  observation_counts = dplyr::filter(observation_counts, NumObs > 2)
-  observation_counts = dplyr::select(observation_counts, -NumObs)
-  input = dplyr::inner_join(input, observation_counts,
-                            by = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
-                                   "ProductCharge", "IsotopeLabelType"))
-  arrow::write_csv_arrow(input, output_path)
-  TRUE
-}
-

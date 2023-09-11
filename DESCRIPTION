@@ -12,10 +12,9 @@ LazyData: true
 RoxygenNote: 7.2.3
 Imports: 
     arrow,
-    data.table,
+    DBI,
     dplyr,
-    ggplot2,
-    MSstatsConvert
+    sparklyr
 Suggests: 
     knitr,
     rmarkdown
