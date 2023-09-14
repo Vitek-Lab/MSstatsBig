@@ -114,7 +114,6 @@ MSstatsPreprocessBigArrow = function(input_file,
   input = dplyr::inner_join(input, feature_counts,
                             by = c("ProteinName", "Feature"))
   input = dplyr::select(input, -Feature)
-  input = dplyr::collect(input)
 
   arrow::write_csv_arrow(input, file = paste0("topN_", output_file_name))
 
