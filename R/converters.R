@@ -108,3 +108,14 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
                        remove_annotation, connection)
 }
 
+
+#' Merge annotation to output of MSstatsPreprocessBig
+#'
+#' @param input output of MSstatsPreprocessBig
+#' @param annotation run annotation
+#'
+#' @export
+#'
+MSstatsAddAnnotationBig = function(input, annotation) {
+  dplyr::inner_join(input, annotation, by = "Run")
+}
