@@ -14,20 +14,20 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
                            repartition = 100)
 
   if (remove_annotation) {
-    dplyr::tbl(sc, "mstinput") %>%
+    dplyr::tbl(connection, "mstinput") %>%
       dplyr::select(-Condition, -BioReplicate) %>%
       sparklyr::spark_write_table("mstinputnoannot", mode = "overwrite")
     DBI::dbRemoveTable(connection, "mstinput")
   }
 
-  dplyr::tbl(sc, "mstinputnoannot") %>%
+  dplyr::tbl(connection, "mstinputnoannot") %>%
     dplyr::group_by(PeptideSequence) %>%
     dplyr::summarize(NumProteins = n_distinct(ProteinName)) %>%
     dplyr::filter(NumProteins > 1) %>%
     sparklyr::spark_write_table("sharedpeptides", mode = "overwrite")
   sparklyr::sdf_repartition(tbl(connection, "mstinputnoannot"), partition_by = "ProteinName")
 
-  dplyr::tbl(sc, "mstinputnoannot") %>%
+  dplyr::tbl(connection, "mstinputnoannot") %>%
     dplyr::group_by(ProteinName, PeptideSequence,
                     PrecursorCharge, FragmentIon, ProductCharge, IsotopeLabelType,
                     Run) %>%
@@ -35,7 +35,7 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
     sparklyr::spark_write_table("mstinputagg", mode = "overwrite")
   DBI::dbRemoveTable(connection, "mstinputnoannot")
 
-  dplyr::tbl(sc, "mstinputagg") %>%
+  dplyr::tbl(connection, "mstinputagg") %>%
     dplyr::group_by(ProteinName, PeptideSequence, PrecursorCharge, FragmentIon, ProductCharge, IsotopeLabelType) %>%
     dplyr::summarize(NumObs = sum(as.numeric(!is.na(Intensity) & Intensity > 1))) %>%
     dplyr::filter(NumObs <= 2) %>%
@@ -43,8 +43,8 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
     sparklyr::spark_write_table(name = "less2obs", mode = "overwrite")
 
   dplyr::anti_join(
-    dplyr::tbl(sc, "mstinputagg"),
-    tbl(sc, "less2obs"),
+    dplyr::tbl(connection, "mstinputagg"),
+    tbl(connection, "less2obs"),
     by = c("ProteinName",
            "PeptideSequence", "PrecursorCharge", "FragmentIon",
            "ProductCharge", "IsotopeLabelType")
@@ -68,8 +68,8 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
     sparklyr::spark_write_table("top50", mode = "overwrite", partition_by = "ProteinName")
 
   dplyr::inner_join(
-    dplyr::tbl(sc, "mstinputfilt"),
-    dplyr::tbl(sc, "top50"),
+    dplyr::tbl(connection, "mstinputfilt"),
+    dplyr::tbl(connection, "top50"),
     by = c("ProteinName", "IsotopeLabelType", "PeptideSequence", "PrecursorCharge",
            "FragmentIon", "ProductCharge")) %>%
     sparklyr::spark_write_table("fgprocessed", mode = "overwrite")
@@ -77,10 +77,9 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
   DBI::dbRemoveTable(connection, "fortop50")
   DBI::dbRemoveTable(connection, "mstinputfilt")
 
-  sparklyr::spark_write_csv(sparklyr::sdf_repartition(tbl(sc, "fgprocessed"), 1),
+  sparklyr::spark_write_csv(sparklyr::sdf_repartition(dplyr::tbl(connection, "fgprocessed"), 1),
                             output_file_name, mode = "overwrite")
-  return(TRUE)
-
+  dplyr::tbl(connection, "fgprocessed")
 }
 
 
