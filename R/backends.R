@@ -72,14 +72,14 @@ MSstatsPreprocessBigSparklyr = function(connection, input_file, output_file_name
     dplyr::tbl(connection, "top50"),
     by = c("ProteinName", "IsotopeLabelType", "PeptideSequence", "PrecursorCharge",
            "FragmentIon", "ProductCharge")) %>%
-    sparklyr::spark_write_table("fgprocessed", mode = "overwrite")
+    sparklyr::spark_write_table("mstprocessed", mode = "overwrite")
   DBI::dbRemoveTable(connection, "top50")
   DBI::dbRemoveTable(connection, "fortop50")
   DBI::dbRemoveTable(connection, "mstinputfilt")
 
-  sparklyr::spark_write_csv(sparklyr::sdf_repartition(dplyr::tbl(connection, "fgprocessed"), 1),
+  sparklyr::spark_write_csv(sparklyr::sdf_repartition(dplyr::tbl(connection, "mstprocessed"), 1),
                             output_file_name, mode = "overwrite")
-  dplyr::tbl(connection, "fgprocessed")
+  dplyr::tbl(connection, "mstprocessed")
 }
 
 
