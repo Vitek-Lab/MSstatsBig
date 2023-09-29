@@ -46,7 +46,7 @@ data was identified and quantified by FragPipe and the included dataset is the
 `msstats.csv` output for FragPipe.
 
 ```{r example_data}
-head(system.file("fgexample.csv", package = "MSstatsBig"))
+head(system.file("extdata", "fgexample.csv", package = "MSstatsBig"))
 ```
 
 ## Run MSstatsBig converter
@@ -58,7 +58,7 @@ below.
 
 ``` {r conv_example, eval=FALSE}
 convertered_data = BigFragPipetoMSstatsFormat(
-  system.file("fgexample.csv", package = "MSstatsBig"),
+  system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
 
@@ -120,7 +120,7 @@ function from 'sparklyr' package.
 
 ```{r, eval=FALSE}
 convertered_data = BigFragPipetoMSstatsFormat(
-  system.file("fgexample.csv", package = "MSstatsBig"),
+  system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
 
