@@ -11,6 +11,9 @@ MSstatsAddAnnotationBig(input, annotation)
 
 \item{annotation}{run annotation}
 }
+\value{
+table of `input` and `annotation` merged by Run column.
+}
 \description{
 Merge annotation to output of MSstatsPreprocessBig
 }

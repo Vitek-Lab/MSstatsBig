@@ -58,6 +58,10 @@ using dataProcess function. Only applicable to sparklyr backend.}
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}
 }
+\value{
+either arrow object or sparklyr table that can be optionally collected
+into memory by using dplyr::collect function.
+}
 \description{
 Convert out-of-memory Spectronaut files to MSstats format.
 }

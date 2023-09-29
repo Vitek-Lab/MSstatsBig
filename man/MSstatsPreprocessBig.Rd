@@ -43,6 +43,10 @@ using dataProcess function. Only applicable to sparklyr backend.}
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}
 }
+\value{
+either arrow object or sparklyr table that can be optionally collected
+into memory by using dplyr::collect function.
+}
 \description{
 General converter for larger-than-memory csv files in MSstats format 10-column format
 }

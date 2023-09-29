@@ -26,6 +26,9 @@
 #' Appropriately configured spark backend provides the most consistent way to
 #' perform these operations.
 #'
+#' @return either arrow object or sparklyr table that can be optionally collected
+#' into memory by using dplyr::collect function.
+#'
 #' @export
 #'
 MSstatsPreprocessBig = function(input_file,
@@ -60,6 +63,9 @@ MSstatsPreprocessBig = function(input_file,
 #'
 #' @export
 #'
+#' @return either arrow object or sparklyr table that can be optionally collected
+#' into memory by using dplyr::collect function.
+#'
 BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
                                       backend,
                                       max_feature_count = 20,
@@ -85,6 +91,9 @@ BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #' @param qvalue_cutoff cutoff which will be used for q-value filtering.
 #'
 #' @export
+#'
+#' @return either arrow object or sparklyr table that can be optionally collected
+#' into memory by using dplyr::collect function.
 #'
 BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
                                          backend,
@@ -115,6 +124,8 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' @param annotation run annotation
 #'
 #' @export
+#'
+#' @return table of `input` and `annotation` merged by Run column.
 #'
 MSstatsAddAnnotationBig = function(input, annotation) {
   dplyr::inner_join(input, annotation, by = "Run")
