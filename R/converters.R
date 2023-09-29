@@ -29,6 +29,14 @@
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
+#' @examples
+#' converted_data = BigFragPipetoMSstatsFormat(
+#'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
+#'   "tencol_format.csv",
+#'   backend="arrow")
+#' procd = MSstatsPreprocessBig("tencol_format.csv", "proc_out.csv", backend = "arrow")
+#' head(dplyr::collect(procd))
+#'
 #' @export
 #'
 MSstatsPreprocessBig = function(input_file,
@@ -62,6 +70,14 @@ MSstatsPreprocessBig = function(input_file,
 #' @inheritParams MSstatsPreprocessBig
 #'
 #' @export
+#'
+#' @examples
+#' converted_data = BigFragPipetoMSstatsFormat(
+#'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
+#'   backend="arrow")
+#' converted_data = dplyr::collect(converted_data)
+#' head(converted_data)
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
@@ -124,6 +140,21 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' @param annotation run annotation
 #'
 #' @export
+#'
+#' @examples
+#' converted_data = BigFragPipetoMSstatsFormat(
+#'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
+#'   backend="arrow")
+#' converted_data = dplyr::collect(converted_data)
+#' head(converted_data)
+#' # Change annotation as an example:
+#' converted_data$Condition = NULL
+#' converted_data$BioReplicate = NULL
+#' annot = data.frame(Run = unique(converted_data[["Run"]]))
+#' annot$BioReplicate = rep(1:53, times = 2)
+#' annot$Condition = rep(1:2, each = 53)
+#' head(MSstatsAddAnnotationBig(converted_data, annot))
 #'
 #' @return table of `input` and `annotation` merged by Run column.
 #'

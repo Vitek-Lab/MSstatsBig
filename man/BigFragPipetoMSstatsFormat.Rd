@@ -50,3 +50,12 @@ into memory by using dplyr::collect function.
 \description{
 Convert out-of-memory FragPipe files to MSstats format.
 }
+\examples{
+converted_data = BigFragPipetoMSstatsFormat(
+  system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend="arrow")
+converted_data = dplyr::collect(converted_data)
+head(converted_data)
+
+}
