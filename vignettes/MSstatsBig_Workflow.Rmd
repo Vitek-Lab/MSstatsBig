@@ -1,0 +1,181 @@
+---
+title: "MSstatsBig Workflow"
+author: "Devon Kohler (<kohler.d@northeastern.edu>)"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MSstatsPTM LabelFree Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## MSstatsBig Package Description
+
+`MSstatsBig` is designed to overcome challenges when analyze very large mass 
+spectrometry (MS)-based proteomics experiments. These experiments are generally
+(but not always) acquired with DIA and include a large number of MS runs. 
+`MSstatsBig` leverages software that can work on datasets with out loading them
+into memory. This avoids a major problem where a dataset cannot be loaded into a
+standard computers RAM.
+
+`MSstatsBig` includes functions which are designed to replace the converters 
+included in the `MSstats` package. The goal of these converters is to perform 
+filtering on the PSM files of identified and quantified data to remove data that
+is not required for differential analysis. Once this data is filtered down it 
+should be able to be loaded into your computer's memory. After the converters 
+are run, the standard `MSstats` workflow can be followed.
+
+`MSstatsBig` currently includes converters for Spectronaut and FragPipe. Beyond 
+these converters, users can manually use the underlying functions by putting 
+their data into `MSstats` format and running the underlying 
+`MSstatsPreprocessBig` function.
+
+``` {r load_package}
+library(MSstatsBig)
+```
+
+## Dataset description
+
+The dataset included in this package is a small subset of a work by Clark et 
+al. [1]. It is a large DIA dataset that includes over 100 runs. The experimental
+data was identified and quantified by FragPipe and the included dataset is the 
+`msstats.csv` output for FragPipe.
+
+```{r example_data}
+head(system.file("fgexample.csv", package = "MSstatsBig"))
+```
+
+## Run MSstatsBig converter
+
+First we run the `MSstatsBig` converter. The converter will save the dataset to 
+a place on your computer, and will return an arrow object. Once then, you can 
+load the output file into memory, or collect the arrow file using the code 
+below.
+
+``` {r conv_example, eval=FALSE}
+convertered_data = BigFragPipetoMSstatsFormat(
+  system.file("fgexample.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend="arrow")
+
+# The returned arrow object needs to be collected for the remaining workflow
+convertered_data = dplyr::collect(convertered_data)
+```
+
+##  Remaining workflow
+
+Once the converter is run the clsasic `MSstats` workflow can be followed.
+
+``` {r msstats_workflow}
+
+library(MSstats)
+
+summarized_data = dataProcess(convertered_data)
+
+# Build contrast matrix
+comparison = matrix(c(-1/2, -1/2, 1/2, 1/2,
+                      -1, 0, 1, 0,
+                      0, -1, 0, 1), 
+    nrow=3, byrow=TRUE)
+row.names(comparison) <- c("T-NAT", "T-NAT Old", "T-NAT Young")
+colnames(comparison) <- c("NAT_Old", "NAT_Young", 
+                          "T_Old", "T_Young")
+
+model_results = groupComparison(comparison, summarized_data)
+
+
+```
+
+## FragPipe converter - `BigFragPipetoMSstatsFormat`
+
+### Arguments
+
+* `input_file` : 	name of the input text file in 10-column MSstats format.
+* `output_file_name` : name of an output file which will be saved after 
+pre-processing
+* `backend` : "arrow" or "sparklyr". Option "sparklyr" requires a spark 
+installation and connection to spark instance provided in the 'connection' 
+parameter.
+* `max_feature_count` : maximum number of features per protein. Features 
+will be selected based on highest average intensity.
+* `filter_unique_peptides` : 	If TRUE, shared peptides will be removed. Please 
+refer to the 'Details' section for additional information.
+* `aggregate_psms` : If TRUE, multiple measurements per PSM in a Run will be 
+aggregated (by taking maximum value). Please refer to the 'Details' section for 
+additional information.
+* `filter_few_obs ` : 	If TRUE, feature with less than 3 observations across 
+runs will be removed. Please refer to the 'Details' section for additional 
+information.
+* `remove_annotation` : If TRUE, columns BioReplicate and Condition will be 
+removed to reduce output file size. These will need to be added manually 
+later before using dataProcess function. Only applicable to sparklyr backend.
+* `connection` : Connection to a spark instance created with the 'spark_connect'
+function from 'sparklyr' package.
+
+### Example
+
+```{r, eval=FALSE}
+convertered_data = BigFragPipetoMSstatsFormat(
+  system.file("fgexample.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend="arrow")
+
+# The returned arrow object needs to be collected for the remaining workflow
+convertered_data = dplyr::collect(convertered_data)
+```
+
+
+## Spectronaut converter - `BigSpectronauttoMSstatsFormat`
+
+### Arguments
+
+* `input_file` : 	name of the input text file in 10-column MSstats format.
+* `output_file_name` : name of an output file which will be saved after 
+pre-processing
+* `backend` : "arrow" or "sparklyr". Option "sparklyr" requires a spark 
+installation and connection to spark instance provided in the 'connection' 
+parameter.
+* `intensity` : name of a column that will be used as Intensity column.
+* `filter_by_excluded` : if TRUE, will filter by the 
+'F.ExcludedFromQuantification' column.
+* `filter_by_identified` : if TRUE, will filter by the 'EG.Identified' column.
+* `filter_by_qvalue` : if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
+* `qvalue_cutoff` : 	cutoff which will be used for q-value filtering.
+* `max_feature_count` : maximum number of features per protein. Features 
+will be selected based on highest average intensity.
+* `filter_unique_peptides` : 	If TRUE, shared peptides will be removed. Please 
+refer to the 'Details' section for additional information.
+* `aggregate_psms` : If TRUE, multiple measurements per PSM in a Run will be 
+aggregated (by taking maximum value). Please refer to the 'Details' section for 
+additional information.
+* `filter_few_obs ` : 	If TRUE, feature with less than 3 observations across 
+runs will be removed. Please refer to the 'Details' section for additional 
+information.
+* `remove_annotation` : If TRUE, columns BioReplicate and Condition will be 
+removed to reduce output file size. These will need to be added manually 
+later before using dataProcess function. Only applicable to sparklyr backend.
+* `connection` : Connection to a spark instance created with the 'spark_connect'
+function from 'sparklyr' package.
+
+### Example
+
+```{r, eval=FALSE}
+convertered_data = BigSpectronauttoMSstatsFormat (
+  "spectronaut_output.csv",
+  "output_file.csv",
+  backend="arrow")
+
+# The returned arrow object needs to be collected for the remaining workflow
+convertered_data = dplyr::collect(convertered_data)
+```
+
+## References
+
+1. D. J. Clark, S. M. Dhanasekaran, F. Petralia, P. Wang and H. Zhang, 
+"Integrated Proteogenomic Characterization of Clear Cell Renal Cell Carcinoma," 
+Cell, vol. 179, pp. 964-983, 2019. 
+
