@@ -46,7 +46,7 @@ data was identified and quantified by FragPipe and the included dataset is the
 `msstats.csv` output for FragPipe.
 
 ```{r example_data}
-head(system.file("extdata", "fgexample.csv", package = "MSstatsBig"))
+head(read.csv(system.file("extdata", "fgexample.csv", package = "MSstatsBig")))
 ```
 
 ## Run MSstatsBig converter
@@ -56,36 +56,36 @@ a place on your computer, and will return an arrow object. Once then, you can
 load the output file into memory, or collect the arrow file using the code 
 below.
 
-``` {r conv_example, eval=FALSE}
-convertered_data = BigFragPipetoMSstatsFormat(
+``` {r conv_example}
+converted_data = BigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
 
 # The returned arrow object needs to be collected for the remaining workflow
-convertered_data = dplyr::collect(convertered_data)
+converted_data = as.data.frame(dplyr::collect(converted_data))
 ```
 
 ##  Remaining workflow
 
-Once the converter is run the clsasic `MSstats` workflow can be followed.
+Once the converter is run the clasic `MSstats` workflow can be followed.
 
 ``` {r msstats_workflow}
 
 library(MSstats)
 
-summarized_data = dataProcess(convertered_data)
+# converted_data = read.csv("output_file.csv")
+summarized_data = dataProcess(converted_data,
+                              use_log_file = FALSE)
 
 # Build contrast matrix
-comparison = matrix(c(-1/2, -1/2, 1/2, 1/2,
-                      -1, 0, 1, 0,
-                      0, -1, 0, 1), 
-    nrow=3, byrow=TRUE)
-row.names(comparison) <- c("T-NAT", "T-NAT Old", "T-NAT Young")
-colnames(comparison) <- c("NAT_Old", "NAT_Young", 
-                          "T_Old", "T_Young")
+comparison = matrix(c(-1, 1),
+    nrow=1, byrow=TRUE)
+row.names(comparison) <- c("T-NAT")
+colnames(comparison) <- c("NAT", "T")
 
-model_results = groupComparison(comparison, summarized_data)
+model_results = groupComparison(comparison, summarized_data,
+                                use_log_file = FALSE)
 
 
 ```
@@ -119,13 +119,13 @@ function from 'sparklyr' package.
 ### Example
 
 ```{r, eval=FALSE}
-convertered_data = BigFragPipetoMSstatsFormat(
+converted_data = BigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
 
 # The returned arrow object needs to be collected for the remaining workflow
-convertered_data = dplyr::collect(convertered_data)
+converted_data = dplyr::collect(converted_data)
 ```
 
 
@@ -164,13 +164,13 @@ function from 'sparklyr' package.
 ### Example
 
 ```{r, eval=FALSE}
-convertered_data = BigSpectronauttoMSstatsFormat (
+converted_data = BigSpectronauttoMSstatsFormat (
   "spectronaut_output.csv",
   "output_file.csv",
   backend="arrow")
 
 # The returned arrow object needs to be collected for the remaining workflow
-convertered_data = dplyr::collect(convertered_data)
+converted_data = dplyr::collect(converted_data)
 ```
 
 ## References
