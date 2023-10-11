@@ -20,6 +20,7 @@ Imports:
     dplyr,
     MSstats,
     MSstatsConvert,
+    readr,
     sparklyr
 Suggests: 
     knitr,

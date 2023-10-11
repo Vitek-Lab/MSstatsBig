@@ -167,3 +167,5 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 MSstatsAddAnnotationBig = function(input, annotation) {
   dplyr::inner_join(input, annotation, by = "Run")
 }
+
+#' @importFrom MSstats dataProcess groupComparison
