@@ -100,7 +100,6 @@ BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #' Convert out-of-memory Spectronaut files to MSstats format.
 #'
 #' @inheritParams MSstatsPreprocessBig
-#' @param intensity name of a column that will be used as Intensity column.
 #' @param filter_by_excluded if TRUE, will filter by the `F.ExcludedFromQuantification` column.
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
 #' @param filter_by_qvalue if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
@@ -108,14 +107,21 @@ BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #'
 #' @export
 #'
+#' @examples
+#' converted_data = BigSpectronauttoMSstatsFormat(
+#'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
+#'   backend="arrow")
+#' converted_data = dplyr::collect(converted_data)
+#' head(converted_data)
+#'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
 BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
                                          backend,
-                                         intensity = "F.PeakArea",
-                                         filter_by_excluded = TRUE,
-                                         filter_by_identified = TRUE,
+                                         filter_by_excluded = FALSE,
+                                         filter_by_identified = FALSE,
                                          filter_by_qvalue = TRUE,
                                          qvalue_cutoff = 0.01,
                                          max_feature_count = 20,
@@ -124,11 +130,11 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
                                          filter_few_obs = FALSE,
                                          remove_annotation = FALSE,
                                          connection = NULL) {
-  reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name), intensity,
+  reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
                        filter_by_excluded, filter_by_identified,
                        filter_by_qvalue, qvalue_cutoff)
-  MSstatsPreprocessBig(paste0("reduce_output_", input_file_path),
-                       output_file_path, backend, max_feature_count,
+  MSstatsPreprocessBig(paste0("reduce_output_", output_file_name),
+                       output_file_name, backend, max_feature_count,
                        aggregate_psms, filter_few_obs,
                        remove_annotation, connection)
 }

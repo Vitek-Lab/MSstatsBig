@@ -8,9 +8,8 @@ BigSpectronauttoMSstatsFormat(
   input_file,
   output_file_name,
   backend,
-  intensity = "F.PeakArea",
-  filter_by_excluded = TRUE,
-  filter_by_identified = TRUE,
+  filter_by_excluded = FALSE,
+  filter_by_identified = FALSE,
   filter_by_qvalue = TRUE,
   qvalue_cutoff = 0.01,
   max_feature_count = 20,
@@ -28,8 +27,6 @@ BigSpectronauttoMSstatsFormat(
 
 \item{backend}{"arrow" or "sparklyr". Option "sparklyr" requires a spark installation
 and connection to spark instance provided in the `connection` parameter.}
-
-\item{intensity}{name of a column that will be used as Intensity column.}
 
 \item{filter_by_excluded}{if TRUE, will filter by the `F.ExcludedFromQuantification` column.}
 
@@ -64,4 +61,13 @@ into memory by using dplyr::collect function.
 }
 \description{
 Convert out-of-memory Spectronaut files to MSstats format.
+}
+\examples{
+converted_data = BigSpectronauttoMSstatsFormat(
+  system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend="arrow")
+converted_data = dplyr::collect(converted_data)
+head(converted_data)
+
 }
