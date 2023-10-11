@@ -162,10 +162,11 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' annot$Condition = rep(1:2, each = 53)
 #' head(MSstatsAddAnnotationBig(converted_data, annot))
 #'
+#' @importFrom MSstats dataProcess groupComparison
+#'
 #' @return table of `input` and `annotation` merged by Run column.
 #'
 MSstatsAddAnnotationBig = function(input, annotation) {
   dplyr::inner_join(input, annotation, by = "Run")
 }
 
-#' @importFrom MSstats dataProcess groupComparison
