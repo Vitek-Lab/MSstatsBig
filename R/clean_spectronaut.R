@@ -16,7 +16,8 @@ reduceBigSpectronaut = function(input_file, output_path,
                                                       filter_by_excluded,
                                                       filter_by_identified,
                                                       filter_by_qvalue,
-                                                      qvalue_cutoff)
+                                                      qvalue_cutoff,
+                                                      pos)
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(spec_chunk),
                             delim = delim,
@@ -28,7 +29,8 @@ cleanSpectronautChunk = function(input, output_path,
                                  filter_by_excluded = FALSE,
                                  filter_by_identified = FALSE,
                                  filter_by_qvalue = TRUE,
-                                 qvalue_cutoff = 0.01) {
+                                 qvalue_cutoff = 0.01,
+                                 pos = NULL) {
   all_cols = c("R.FileName", "R.Condition", "R.Replicate",
                "PG.ProteinAccessions", "EG.ModifiedSequence", "FG.LabeledSequence",
                "FG.Charge", "F.FrgIon", "F.Charge",
@@ -85,6 +87,12 @@ cleanSpectronautChunk = function(input, output_path,
   input = dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                         ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
                         Intensity)
-  readr::write_csv(input, file = output_path)
+  if (!is.null(pos)) {
+    if (pos == 1) {
+      readr::write_csv(input, file = output_path, append = FALSE)
+    } else {
+      readr::write_csv(input, file = output_path, append = TRUE)
+    }
+  }
   NULL
 }
