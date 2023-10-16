@@ -15,10 +15,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## MSstatsBig Package Description
 
-`MSstatsBig` is designed to overcome challenges when analyze very large mass 
+`MSstatsBig` is designed to overcome challenges when analyzing very large mass 
 spectrometry (MS)-based proteomics experiments. These experiments are generally
 (but not always) acquired with DIA and include a large number of MS runs. 
-`MSstatsBig` leverages software that can work on datasets with out loading them
+`MSstatsBig` leverages software that can work on datasets without loading them
 into memory. This avoids a major problem where a dataset cannot be loaded into a
 standard computers RAM.
 
@@ -58,7 +58,8 @@ head(read.csv(system.file("extdata", "fgexample.csv", package = "MSstatsBig")))
 First we run the `MSstatsBig` converter. The converter will save the dataset to 
 a place on your computer, and will return an arrow object. Once then, you can 
 read the data from text file or load the arrow data.frame into memory by using
-the `dplyr::collect` function.
+the `dplyr::collect` function. The "collected" data can then be treated as a 
+standard R `data.frame`.
 
 ``` {r conv_example}
 setwd(tempdir())
