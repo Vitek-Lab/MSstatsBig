@@ -57,7 +57,9 @@ load the output file into memory, or collect the arrow file using the code
 below.
 
 ``` {r conv_example}
-converted_data = BigFragPipetoMSstatsFormat(
+setwd(tempdir())
+
+converted_data = bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
@@ -119,7 +121,8 @@ function from 'sparklyr' package.
 ### Example
 
 ```{r, eval=FALSE}
-converted_data = BigFragPipetoMSstatsFormat(
+
+converted_data = bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
@@ -164,7 +167,7 @@ function from 'sparklyr' package.
 ### Example
 
 ```{r, eval=FALSE}
-converted_data = BigSpectronauttoMSstatsFormat (
+converted_data = bigSpectronauttoMSstatsFormat (
   "spectronaut_output.csv",
   "output_file.csv",
   backend="arrow")

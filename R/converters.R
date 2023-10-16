@@ -30,7 +30,7 @@
 #' into memory by using dplyr::collect function.
 #'
 #' @examples
-#' converted_data = BigFragPipetoMSstatsFormat(
+#' converted_data = bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "tencol_format.csv",
 #'   backend="arrow")
@@ -72,7 +72,7 @@ MSstatsPreprocessBig = function(input_file,
 #' @export
 #'
 #' @examples
-#' converted_data = BigFragPipetoMSstatsFormat(
+#' converted_data = bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
 #'   backend="arrow")
@@ -82,7 +82,7 @@ MSstatsPreprocessBig = function(input_file,
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
-BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
+bigFragPipetoMSstatsFormat = function(input_file, output_file_name,
                                       backend,
                                       max_feature_count = 20,
                                       filter_unique_peptides = FALSE,
@@ -108,7 +108,7 @@ BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #' @export
 #'
 #' @examples
-#' converted_data = BigSpectronauttoMSstatsFormat(
+#' converted_data = bigSpectronauttoMSstatsFormat(
 #'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
 #'   backend="arrow")
@@ -118,7 +118,7 @@ BigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
-BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
+bigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
                                          backend,
                                          filter_by_excluded = FALSE,
                                          filter_by_identified = FALSE,
@@ -148,7 +148,7 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' @export
 #'
 #' @examples
-#' converted_data = BigFragPipetoMSstatsFormat(
+#' converted_data = bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
 #'   backend="arrow")
@@ -163,6 +163,7 @@ BigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' head(MSstatsAddAnnotationBig(converted_data, annot))
 #'
 #' @importFrom MSstats dataProcess groupComparison
+#' @importFrom utils head
 #'
 #' @return table of `input` and `annotation` merged by Run column.
 #'

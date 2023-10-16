@@ -60,7 +60,7 @@ Appropriately configured spark backend provides the most consistent way to
 perform these operations.
 }
 \examples{
-converted_data = BigFragPipetoMSstatsFormat(
+converted_data = bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "tencol_format.csv",
   backend="arrow")

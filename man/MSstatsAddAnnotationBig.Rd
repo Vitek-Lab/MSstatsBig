@@ -18,7 +18,7 @@ table of `input` and `annotation` merged by Run column.
 Merge annotation to output of MSstatsPreprocessBig
 }
 \examples{
-converted_data = BigFragPipetoMSstatsFormat(
+converted_data = bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
