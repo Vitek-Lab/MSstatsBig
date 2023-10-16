@@ -1,7 +1,7 @@
 Package: MSstatsBig
 Type: Package
 Title: MSstats Preprocessing for Larger than Memory Data
-Version: 0.99.5
+Version: 0.99.6
 Authors@R: c(
   person("Mateusz", "Staniak", email = "mtst@mstaniak.pl", role = c("aut", "cre")),
   person("Devon", "Kohler", email = "kohler.d@northeastern.edu", role = "aut")) 
