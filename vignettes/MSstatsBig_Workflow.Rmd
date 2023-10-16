@@ -176,6 +176,12 @@ converted_data = bigSpectronauttoMSstatsFormat (
 converted_data = dplyr::collect(converted_data)
 ```
 
+## Session info
+
+```{r }
+sessionInfo()
+```
+
 ## References
 
 1. D. J. Clark, S. M. Dhanasekaran, F. Petralia, P. Wang and H. Zhang, 

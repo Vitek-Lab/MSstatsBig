@@ -163,7 +163,7 @@ bigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' head(MSstatsAddAnnotationBig(converted_data, annot))
 #'
 #' @importFrom MSstats dataProcess groupComparison
-#' @importFrom utils head
+#' @importFrom utils head sessionInfo
 #'
 #' @return table of `input` and `annotation` merged by Run column.
 #'
