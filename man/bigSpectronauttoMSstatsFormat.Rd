@@ -63,11 +63,11 @@ into memory by using dplyr::collect function.
 Convert out-of-memory Spectronaut files to MSstats format.
 }
 \examples{
-converted_data = bigSpectronauttoMSstatsFormat(
+converted_data <- bigSpectronauttoMSstatsFormat(
   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
   "output_file.csv",
   backend="arrow")
-converted_data = dplyr::collect(converted_data)
+converted_data <- dplyr::collect(converted_data)
 head(converted_data)
 
 }
