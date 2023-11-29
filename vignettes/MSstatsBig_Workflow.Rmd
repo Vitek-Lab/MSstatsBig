@@ -1,0 +1,122 @@
+---
+title: "MSstatsBig Workflow"
+author: "Devon Kohler (<kohler.d@northeastern.edu>)"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MSstatsBig Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## MSstatsBig Package Description
+
+`MSstatsBig` is designed to overcome challenges when analyzing very large mass 
+spectrometry (MS)-based proteomics experiments. These experiments are generally
+(but not always) acquired with DIA and include a large number of MS runs. 
+`MSstatsBig` leverages software that can work on datasets without loading them
+into memory. This avoids a major problem where a dataset cannot be loaded into a
+standard computers RAM.
+
+`MSstatsBig` includes functions which are designed to replace the converters 
+included in the `MSstats` package. The goal of these converters is to perform 
+filtering on the PSM files of identified and quantified data to remove data that
+is not required for differential analysis. Once this data is filtered down it 
+should be able to be loaded into your computer's memory. After the converters 
+are run, the standard `MSstats` workflow can be followed.
+
+`MSstatsBig` currently includes converters for Spectronaut and FragPipe. Beyond 
+these converters, users can manually use the underlying functions by putting 
+their data into `MSstats` format and running the underlying 
+`MSstatsPreprocessBig` function.
+This way, either by using native export format of signal processing tools or by 
+converting raw data chunk by chunk 
+(for example with the readr::read_delim_chunked function), `MSstatsBig` can be 
+used with other popular tools such as DIA-NN.
+
+``` {r load_package}
+library(MSstatsBig)
+```
+
+## Dataset description
+
+The dataset included in this package is a small subset of a work by Clark et 
+al. [1]. It is a large DIA dataset that includes over 100 runs. The experimental
+data was identified and quantified by FragPipe and the included dataset is the 
+`msstats.csv` output for FragPipe.
+
+```{r example_data}
+head(read.csv(system.file("extdata", "fgexample.csv", package = "MSstatsBig")))
+```
+
+## Run MSstatsBig converter
+
+First we run the `MSstatsBig` converter. The converter will save the dataset to 
+a place on your computer, and will return an arrow object. Once then, you can 
+read the data from text file or load the arrow data.frame into memory by using
+the `dplyr::collect` function. The "collected" data can then be treated as a 
+standard R `data.frame`.
+
+``` {r conv_example}
+setwd(tempdir())
+
+converted_data = bigFragPipetoMSstatsFormat(
+  system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend="arrow")
+
+# The returned arrow object needs to be collected for the remaining workflow
+converted_data = as.data.frame(dplyr::collect(converted_data))
+```
+
+##  Remaining workflow
+
+Once the converter is run the standard `MSstats` workflow can be followed:
+
+  * `dataProcess` function summarizes peptide-level data into protein-level estimates.
+  * `groupComparison` function fits a linear model to protein-level data and
+  performs statistical inference for comparisons of selected groups.
+  
+Details of the MSstats workflow can be found in [2].
+
+``` {r msstats_workflow}
+
+library(MSstats)
+
+# converted_data = read.csv("output_file.csv")
+summarized_data = dataProcess(converted_data,
+                              use_log_file = FALSE)
+
+# Build contrast matrix
+comparison = matrix(c(-1, 1),
+    nrow=1, byrow=TRUE)
+row.names(comparison) <- c("T-NAT")
+colnames(comparison) <- c("NAT", "T")
+
+model_results = groupComparison(contrast.matrix = comparison, 
+                                data = summarized_data,
+                                use_log_file = FALSE)
+
+
+```
+
+## Session info
+
+```{r }
+sessionInfo()
+```
+
+## References
+
+1. D. J. Clark, S. M. Dhanasekaran, F. Petralia, P. Wang and H. Zhang, 
+"Integrated Proteogenomic Characterization of Clear Cell Renal Cell Carcinoma," 
+Cell, vol. 179, pp. 964-983, 2019. 
+
+2. D. Kohler et al., "MSstats Version 4.0: Statistical Analyses of Quantitative 
+Mass Spectrometry-Based Proteomic Experiments with Chromatography-Based 
+Quantification at Scale", J. Proteome Res. 22, 5, pp. 1466–1482, 
+J. Proteome Res. 2023, 22, 5, 1466–1482

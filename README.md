@@ -14,6 +14,14 @@ as follows:
 devtools::install_github("Vitek-Lab/MSstatsBig", build_vignettes = TRUE)
 ```
 
+Important functions:
+
+```
+BigFragPipetoMSstatsFormat()
+BigSpectronauttoMSstatsFormat()
+MSstatsPreprocessBig()
+```
+
 ## License
 
 [Artistic-2.0](https://opensource.org/licenses/Artistic-2.0)
