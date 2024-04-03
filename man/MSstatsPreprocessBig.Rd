@@ -60,11 +60,11 @@ Appropriately configured spark backend provides the most consistent way to
 perform these operations.
 }
 \examples{
-converted_data = bigFragPipetoMSstatsFormat(
+converted_data <- bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "tencol_format.csv",
   backend="arrow")
-procd = MSstatsPreprocessBig("tencol_format.csv", "proc_out.csv", backend = "arrow")
+procd <- MSstatsPreprocessBig("tencol_format.csv", "proc_out.csv", backend = "arrow")
 head(dplyr::collect(procd))
 
 }

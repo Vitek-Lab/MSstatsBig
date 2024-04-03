@@ -67,7 +67,8 @@ setwd(tempdir())
 converted_data = bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
-  backend="arrow")
+  backend="arrow",
+  max_feature_count = 20)
 
 # The returned arrow object needs to be collected for the remaining workflow
 converted_data = as.data.frame(dplyr::collect(converted_data))

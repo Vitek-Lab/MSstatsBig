@@ -30,24 +30,24 @@
 #' into memory by using dplyr::collect function.
 #'
 #' @examples
-#' converted_data = bigFragPipetoMSstatsFormat(
+#' converted_data <- bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "tencol_format.csv",
 #'   backend="arrow")
-#' procd = MSstatsPreprocessBig("tencol_format.csv", "proc_out.csv", backend = "arrow")
+#' procd <- MSstatsPreprocessBig("tencol_format.csv", "proc_out.csv", backend = "arrow")
 #' head(dplyr::collect(procd))
 #'
 #' @export
 #'
-MSstatsPreprocessBig = function(input_file,
-                                output_file_name,
-                                backend,
-                                max_feature_count = 20,
-                                filter_unique_peptides = FALSE,
-                                aggregate_psms = FALSE,
-                                filter_few_obs = FALSE,
-                                remove_annotation = FALSE,
-                                connection = NULL) {
+MSstatsPreprocessBig <-  function(input_file,
+                                 output_file_name,
+                                 backend,
+                                 max_feature_count =  20,
+                                 filter_unique_peptides =  FALSE,
+                                 aggregate_psms =  FALSE,
+                                 filter_few_obs =  FALSE,
+                                 remove_annotation =  FALSE,
+                                 connection =  NULL) {
   if (backend == "arrow") {
     MSstatsPreprocessBigArrow(input_file,
                               output_file_name,
@@ -72,24 +72,24 @@ MSstatsPreprocessBig = function(input_file,
 #' @export
 #'
 #' @examples
-#' converted_data = bigFragPipetoMSstatsFormat(
+#' converted_data <- bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
-#'   backend="arrow")
-#' converted_data = dplyr::collect(converted_data)
+#'   backend = "arrow")
+#' converted_data <- dplyr::collect(converted_data)
 #' head(converted_data)
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
-bigFragPipetoMSstatsFormat = function(input_file, output_file_name,
-                                      backend,
-                                      max_feature_count = 20,
-                                      filter_unique_peptides = FALSE,
-                                      aggregate_psms = FALSE,
-                                      filter_few_obs = FALSE,
-                                      remove_annotation = FALSE,
-                                      connection = NULL) {
+bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
+                                       backend,
+                                       max_feature_count =  20,
+                                       filter_unique_peptides =  FALSE,
+                                       aggregate_psms =  FALSE,
+                                       filter_few_obs =  FALSE,
+                                       remove_annotation =  FALSE,
+                                       connection =  NULL) {
   MSstatsPreprocessBig(input_file, output_file_name,
                        backend, max_feature_count, filter_unique_peptides,
                        aggregate_psms, filter_few_obs, remove_annotation,
@@ -108,28 +108,28 @@ bigFragPipetoMSstatsFormat = function(input_file, output_file_name,
 #' @export
 #'
 #' @examples
-#' converted_data = bigSpectronauttoMSstatsFormat(
+#' converted_data <- bigSpectronauttoMSstatsFormat(
 #'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
 #'   backend="arrow")
-#' converted_data = dplyr::collect(converted_data)
+#' converted_data <- dplyr::collect(converted_data)
 #' head(converted_data)
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
-bigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
-                                         backend,
-                                         filter_by_excluded = FALSE,
-                                         filter_by_identified = FALSE,
-                                         filter_by_qvalue = TRUE,
-                                         qvalue_cutoff = 0.01,
-                                         max_feature_count = 20,
-                                         filter_unique_peptides = FALSE,
-                                         aggregate_psms = FALSE,
-                                         filter_few_obs = FALSE,
-                                         remove_annotation = FALSE,
-                                         connection = NULL) {
+bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
+                                          backend,
+                                          filter_by_excluded =  FALSE,
+                                          filter_by_identified =  FALSE,
+                                          filter_by_qvalue =  TRUE,
+                                          qvalue_cutoff =  0.01,
+                                          max_feature_count =  20,
+                                          filter_unique_peptides =  FALSE,
+                                          aggregate_psms =  FALSE,
+                                          filter_few_obs =  FALSE,
+                                          remove_annotation =  FALSE,
+                                          connection =  NULL) {
   reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
                        filter_by_excluded, filter_by_identified,
                        filter_by_qvalue, qvalue_cutoff)
@@ -148,18 +148,18 @@ bigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #' @export
 #'
 #' @examples
-#' converted_data = bigFragPipetoMSstatsFormat(
+#' converted_data <- bigFragPipetoMSstatsFormat(
 #'   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
-#'   backend="arrow")
-#' converted_data = dplyr::collect(converted_data)
+#'   backend = "arrow")
+#' converted_data <- dplyr::collect(converted_data)
 #' head(converted_data)
 #' # Change annotation as an example:
-#' converted_data$Condition = NULL
-#' converted_data$BioReplicate = NULL
-#' annot = data.frame(Run = unique(converted_data[["Run"]]))
-#' annot$BioReplicate = rep(1:53, times = 2)
-#' annot$Condition = rep(1:2, each = 53)
+#' converted_data$Condition <- NULL
+#' converted_data$BioReplicate <- NULL
+#' annot <- data.frame(Run = unique(converted_data[["Run"]]))
+#' annot$BioReplicate <- rep(1:53, times = 2)
+#' annot$Condition <- rep(1:2, each = 53)
 #' head(MSstatsAddAnnotationBig(converted_data, annot))
 #'
 #' @importFrom MSstats dataProcess groupComparison
@@ -167,7 +167,7 @@ bigSpectronauttoMSstatsFormat = function(input_file, output_file_name,
 #'
 #' @return table of `input` and `annotation` merged by Run column.
 #'
-MSstatsAddAnnotationBig = function(input, annotation) {
+MSstatsAddAnnotationBig <- function(input, annotation) {
   dplyr::inner_join(input, annotation, by = "Run")
 }
 

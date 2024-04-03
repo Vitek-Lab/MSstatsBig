@@ -18,18 +18,18 @@ table of `input` and `annotation` merged by Run column.
 Merge annotation to output of MSstatsPreprocessBig
 }
 \examples{
-converted_data = bigFragPipetoMSstatsFormat(
+converted_data <- bigFragPipetoMSstatsFormat(
   system.file("extdata", "fgexample.csv", package = "MSstatsBig"),
   "output_file.csv",
-  backend="arrow")
-converted_data = dplyr::collect(converted_data)
+  backend = "arrow")
+converted_data <- dplyr::collect(converted_data)
 head(converted_data)
 # Change annotation as an example:
-converted_data$Condition = NULL
-converted_data$BioReplicate = NULL
-annot = data.frame(Run = unique(converted_data[["Run"]]))
-annot$BioReplicate = rep(1:53, times = 2)
-annot$Condition = rep(1:2, each = 53)
+converted_data$Condition <- NULL
+converted_data$BioReplicate <- NULL
+annot <- data.frame(Run = unique(converted_data[["Run"]]))
+annot$BioReplicate <- rep(1:53, times = 2)
+annot$Condition <- rep(1:2, each = 53)
 head(MSstatsAddAnnotationBig(converted_data, annot))
 
 }
