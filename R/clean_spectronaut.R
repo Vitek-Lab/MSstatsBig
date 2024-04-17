@@ -35,16 +35,18 @@ cleanSpectronautChunk = function(input, output_path,
                 "PG.ProteinAccessions", "EG.ModifiedSequence", "FG.LabeledSequence",
                 "FG.Charge", "F.FrgIon", "F.Charge",
                 "EG.Identified", "F.ExcludedFromQuantification", "F.FrgLossType",
-                "PG.Qvalue", "EG.Qvalue", "F.NormalizedPeakArea")
+                "PG.Qvalue", "EG.Qvalue", "F.NormalizedPeakArea", "F.MeasuredRelativeIntensity",
+                "F.PeakArea", "F.MassAccuracyPPM", "FG.FWHM", "EG.ApexRT", "FG.ShapeQualityScore")
   cols <- intersect(all_cols, colnames(input))
   input <- dplyr::select(input, all_of(cols))
   input <- dplyr::rename_with(input, .fn = MSstatsConvert:::.standardizeColnames)
   
-  new_names <- c("Run", "Condition", "BioReplicate", "ProteinName",
-                 "PeptideSequence", "LabeledSequence", "PrecursorCharge", "FragmentIon",
-                 "ProductCharge", "Identified", "Excluded",
-                 "FFrgLossType", "PGQvalue", "EGQvalue",
-                 "Intensity")
+  new_names <- c("Run", "Condition", "BioReplicate", 
+                 "ProteinName", "PeptideSequence", "LabeledSequence", 
+                 "PrecursorCharge", "FragmentIon", "ProductCharge", 
+                 "Identified", "Excluded", "FFrgLossType", 
+                 "PGQvalue", "EGQvalue", "Intensity", "MeasuredRelativeIntensity",
+                 "PeakArea", "MassAccuracyPPM", "FWHM", "ApexRT", "ShapeQualityScore")
   # non_standardized =
   old_names <- MSstatsConvert:::.standardizeColnames(all_cols)
   names(old_names) <- new_names
@@ -86,7 +88,8 @@ cleanSpectronautChunk = function(input, output_path,
   }
   input <- dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                          ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
-                         Intensity)
+                         Intensity, MeasuredRelativeIntensity, PeakArea, MassAccuracyPPM, 
+                         FWHM, ApexRT, ShapeQualityScore)
   if (!is.null(pos)) {
     if (pos == 1) {
       readr::write_csv(input, file = output_path, append = FALSE)
