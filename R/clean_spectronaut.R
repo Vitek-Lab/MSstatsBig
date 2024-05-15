@@ -36,7 +36,8 @@ cleanSpectronautChunk = function(input, output_path,
                 "FG.Charge", "F.FrgIon", "F.Charge",
                 "EG.Identified", "F.ExcludedFromQuantification", "F.FrgLossType",
                 "PG.Qvalue", "EG.Qvalue", "F.NormalizedPeakArea", "F.MeasuredRelativeIntensity",
-                "F.PeakArea", "F.MassAccuracyPPM", "FG.FWHM", "EG.ApexRT", "FG.ShapeQualityScore")
+                "F.PeakArea", "F.MassAccuracyPPM", "FG.FWHM", "EG.ApexRT", "FG.ShapeQualityScore", 
+                "FG.ShapeQualityScore (MS1)", "FG.ShapeQualityScore (MS2)")
   cols <- intersect(all_cols, colnames(input))
   input <- dplyr::select(input, all_of(cols))
   input <- dplyr::rename_with(input, .fn = MSstatsConvert:::.standardizeColnames)
@@ -46,7 +47,8 @@ cleanSpectronautChunk = function(input, output_path,
                  "PrecursorCharge", "FragmentIon", "ProductCharge", 
                  "Identified", "Excluded", "FFrgLossType", 
                  "PGQvalue", "EGQvalue", "Intensity", "MeasuredRelativeIntensity",
-                 "PeakArea", "MassAccuracyPPM", "FWHM", "ApexRT", "ShapeQualityScore")
+                 "PeakArea", "MassAccuracyPPM", "FWHM", "ApexRT", "ShapeQualityScore",
+                 "ShapeQualityScoreMS1", "ShapeQualityScoreMS2")
   # non_standardized =
   old_names <- MSstatsConvert:::.standardizeColnames(all_cols)
   names(old_names) <- new_names
