@@ -91,7 +91,7 @@ cleanSpectronautChunk = function(input, output_path,
   input <- dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
                          ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
                          Intensity, MeasuredRelativeIntensity, PeakArea, MassAccuracyPPM, 
-                         FWHM, ApexRT, ShapeQualityScore)
+                         FWHM, ApexRT, ShapeQualityScore, ShapeQualityScoreMS1, ShapeQualityScoreMS2)
   if (!is.null(pos)) {
     if (pos == 1) {
       readr::write_csv(input, file = output_path, append = FALSE)
