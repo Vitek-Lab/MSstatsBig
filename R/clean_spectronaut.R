@@ -73,7 +73,7 @@ cleanSpectronautChunk = function(input, output_path,
   }
   
   if (filter_by_qvalue) {
-    input <- dplyr::mutate(input, Intensity = dplyr::if_else(EGQvalue < qvalue_cutoff, Intensity, 0))
+    input <- dplyr::mutate(input, Intensity = dplyr::if_else(EGQvalue < qvalue_cutoff, Intensity, NA_real_))
     input <- dplyr::mutate(input, Intensity = dplyr::if_else(PGQvalue < qvalue_cutoff, Intensity, NA_real_))
   }
   
