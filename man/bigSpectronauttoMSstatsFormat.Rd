@@ -10,7 +10,7 @@ bigSpectronauttoMSstatsFormat(
   backend,
   filter_by_excluded = FALSE,
   filter_by_identified = FALSE,
-  filter_by_qvalue = TRUE,
+  filter_by_qvalue = FALSE,
   qvalue_cutoff = 0.01,
   max_feature_count = 20,
   filter_unique_peptides = FALSE,
