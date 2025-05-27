@@ -47,6 +47,8 @@ MSstatsPreprocessBig <-  function(input_file,
                                  aggregate_psms =  FALSE,
                                  filter_few_obs =  FALSE,
                                  remove_annotation =  FALSE,
+                                 calculateAnomalyScores = FALSE, 
+                                 anomalyModelFeatures = c(),
                                  connection =  NULL) {
   if (backend == "arrow") {
     MSstatsPreprocessBigArrow(input_file,
@@ -54,7 +56,9 @@ MSstatsPreprocessBig <-  function(input_file,
                               max_feature_count,
                               filter_unique_peptides,
                               aggregate_psms,
-                              filter_few_obs)
+                              filter_few_obs,
+                              calculateAnomalyScores, 
+                              anomalyModelFeatures)
   } else if (backend == "sparklyr") {
     MSstatsPreprocessBigSparklyr(connection, input, output_file_name,
                                  max_feature_count, filter_unique_peptides,
@@ -120,23 +124,47 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #'
 bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           backend,
-                                          filter_by_excluded =  FALSE,
-                                          filter_by_identified =  FALSE,
-                                          filter_by_qvalue =  FALSE,
-                                          qvalue_cutoff =  0.01,
-                                          max_feature_count =  20,
+                                          intensity = "F.NormalizedPeakArea",
+                                          filter_by_excluded = FALSE,
+                                          filter_by_identified = FALSE,
+                                          filter_by_qvalue = FALSE,
+                                          qvalue_cutoff = 0.01,
+                                          max_feature_count = 100,
                                           filter_unique_peptides =  FALSE,
                                           aggregate_psms =  FALSE,
                                           filter_few_obs =  FALSE,
                                           remove_annotation =  FALSE,
+                                          calculateAnomalyScores=FALSE, 
+                                          anomalyModelFeatures=c(),
+                                          anomalyModelFeatureTemporal=c(),
+                                          runOrder=NULL, 
+                                          n_trees=100, 
+                                          max_depth="auto", 
+                                          numberOfCores=1, 
                                           connection =  NULL) {
   reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
-                       filter_by_excluded, filter_by_identified,
-                       filter_by_qvalue, qvalue_cutoff)
-  MSstatsPreprocessBig(paste0("reduce_output_", output_file_name),
-                       output_file_name, backend, max_feature_count,
-                       aggregate_psms, filter_few_obs,
-                       remove_annotation, connection)
+                       intensity, filter_by_excluded, filter_by_identified,
+                       filter_by_qvalue, qvalue_cutoff,
+                       calculateAnomalyScores, anomalyModelFeatures)
+  msstats_data <- MSstatsPreprocessBig(
+    paste0("reduce_output_", output_file_name),
+    output_file_name, backend, max_feature_count,
+    aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores, 
+    anomalyModelFeatures, connection)
+  
+  if (calculateAnomalyScores){
+    
+    # TODO: Move this into the MSstatsAnomalyScores function
+    anomalyModelFeatures <- MSstatsConvert:::.standardizeColnames(
+      anomalyModelFeatures)
+    
+    msstats_data <- MSstatsConvert::MSstatsAnomalyScores(
+      dplyr::collect(msstats_data), anomalyModelFeatures, 
+      anomalyModelFeatureTemporal, runOrder, n_trees, max_depth, numberOfCores)
+  }
+  
+  return(msstats_data)
+  
 }
 
 

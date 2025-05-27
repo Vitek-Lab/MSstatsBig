@@ -1,9 +1,12 @@
 #' @keywords internal
 reduceBigSpectronaut <- function(input_file, output_path,
+                                 intensity="F.NormalizedPeakArea",
                                  filter_by_excluded = FALSE,
                                  filter_by_identified = FALSE,
                                  filter_by_qvalue = TRUE,
-                                 qvalue_cutoff = 0.01) {
+                                 qvalue_cutoff = 0.01,
+                                 calculateAnomalyScores=FALSE, 
+                                 anomalyModelFeatures=c()) {
   if (grepl("csv", input_file)) {
     delim = ","
   } else if (grepl("tsv|xls", input_file)) {
@@ -13,11 +16,14 @@ reduceBigSpectronaut <- function(input_file, output_path,
   }
   spec_chunk <- function(x, pos) cleanSpectronautChunk(x,
                                                        output_path,
+                                                       intensity,
                                                        filter_by_excluded,
                                                        filter_by_identified,
                                                        filter_by_qvalue,
                                                        qvalue_cutoff,
-                                                       pos)
+                                                       pos,
+                                                       calculateAnomalyScores, 
+                                                       anomalyModelFeatures)
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(spec_chunk),
                             delim = delim,
@@ -26,16 +32,24 @@ reduceBigSpectronaut <- function(input_file, output_path,
 
 #' @keywords internal
 cleanSpectronautChunk = function(input, output_path,
+                                 intensity="F.NormalizedPeakArea",
                                  filter_by_excluded = FALSE,
                                  filter_by_identified = FALSE,
                                  filter_by_qvalue = TRUE,
                                  qvalue_cutoff = 0.01,
-                                 pos = NULL) {
+                                 pos = NULL,
+                                 calculateAnomalyScores=FALSE, 
+                                 anomalyModelFeatures=c()) {
   all_cols <- c("R.FileName", "R.Condition", "R.Replicate",
                 "PG.ProteinAccessions", "EG.ModifiedSequence", "FG.LabeledSequence",
                 "FG.Charge", "F.FrgIon", "F.Charge",
                 "EG.Identified", "F.ExcludedFromQuantification", "F.FrgLossType",
-                "PG.Qvalue", "EG.Qvalue", "F.NormalizedPeakArea")
+                "PG.Qvalue", "EG.Qvalue", intensity)
+  
+  if (calculateAnomalyScores){
+    all_cols <- c(all_cols, anomalyModelFeatures)
+  }
+  
   cols <- intersect(all_cols, colnames(input))
   input <- dplyr::select(input, all_of(cols))
   input <- dplyr::rename_with(input, .fn = MSstatsConvert:::.standardizeColnames)
@@ -45,6 +59,10 @@ cleanSpectronautChunk = function(input, output_path,
                  "ProductCharge", "Identified", "Excluded",
                  "FFrgLossType", "PGQvalue", "EGQvalue",
                  "Intensity")
+  if (calculateAnomalyScores){
+    new_names <- c(new_names, MSstatsConvert:::.standardizeColnames(anomalyModelFeatures))
+  }
+  
   # non_standardized =
   old_names <- MSstatsConvert:::.standardizeColnames(all_cols)
   names(old_names) <- new_names
@@ -63,30 +81,42 @@ cleanSpectronautChunk = function(input, output_path,
   }
   
   if (filter_by_excluded) {
-    input <- dplyr::filter(input, !Excluded)
-    input <- dplyr::select(input, -Excluded)
+    input <- dplyr::mutate(
+      input, Intensity = dplyr::if_else(Excluded, NA_real_, Intensity))
+    
   }
   
   if (filter_by_identified) {
-    input <- dplyr::filter(input, Identified)
-    input <- dplyr::select(input, -Identified)
+    input <- dplyr::mutate(
+      input, Intensity = dplyr::if_else(Identified, NA_real_, Intensity))
   }
   
   if (filter_by_qvalue) {
-    input <- dplyr::mutate(input, Intensity = dplyr::if_else(EGQvalue < qvalue_cutoff, Intensity, NA_real_))
-    input <- dplyr::mutate(input, Intensity = dplyr::if_else(PGQvalue < qvalue_cutoff, Intensity, NA_real_))
+    input <- dplyr::mutate(
+      input,
+      Intensity = dplyr::if_else(EGQvalue < qvalue_cutoff, Intensity, NA_real_))
+    input <- dplyr::mutate(
+      input, 
+      Intensity = dplyr::if_else(PGQvalue < qvalue_cutoff, Intensity, NA_real_))
   }
   
   input <- dplyr::filter(input, FFrgLossType == "noloss")
   if (is.element("LabeledSequence", colnames(input))) {
-    input = dplyr::mutate(input, IsLabeled = grepl("Lys8", LabeledSequence) | grepl("Arg10", LabeledSequence))
-    input = dplyr::mutate(input, IsotopeLabelType := dplyr::if_else(IsLabeled, "H", "L"))
+    input <- dplyr::mutate(input, IsLabeled = grepl("Lys8", LabeledSequence) | grepl("Arg10", LabeledSequence))
+    input <- dplyr::mutate(input, IsotopeLabelType := dplyr::if_else(IsLabeled, "H", "L"))
   } else {
     input <- dplyr::mutate(input, IsotopeLabelType = "L")
   }
-  input <- dplyr::select(input, ProteinName, PeptideSequence, PrecursorCharge, FragmentIon,
-                         ProductCharge, IsotopeLabelType, Run, BioReplicate, Condition,
-                         Intensity)
+  
+  select_cols = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
+                  "ProductCharge", "IsotopeLabelType", "Run", "BioReplicate", "Condition",
+                  "Intensity")
+  if (calculateAnomalyScores){
+    select_cols = c(select_cols, 
+                    MSstatsConvert:::.standardizeColnames(anomalyModelFeatures))
+  }
+  
+  input <- dplyr::select(input, select_cols)
   if (!is.null(pos)) {
     if (pos == 1) {
       readr::write_csv(input, file = output_path, append = FALSE)

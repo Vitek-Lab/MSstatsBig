@@ -90,7 +90,9 @@ MSstatsPreprocessBigArrow <- function(input_file,
                                       max_feature_count = 20,
                                       filter_unique_peptides = FALSE,
                                       aggregate_psms = FALSE,
-                                      filter_few_obs = FALSE) {
+                                      filter_few_obs = FALSE,
+                                      calculateAnomalyScores = FALSE, 
+                                      anomalyModelFeatures = c()) {
   input <- arrow::open_dataset(input_file, format = "csv")
   
   input <- dplyr::mutate(input,
@@ -126,10 +128,19 @@ MSstatsPreprocessBigArrow <- function(input_file,
   }
   
   if (aggregate_psms) {
-    input <- dplyr::group_by(input, ProteinName, PeptideSequence, PrecursorCharge,
-                             FragmentIon, ProductCharge, IsotopeLabelType, Run,
-                             Condition, BioReplicate)
-    input <- dplyr::summarize(input, Intensity = max(Intensity, na.rm <- TRUE))
+    group_cols <- c("ProteinName", "PeptideSequence", "PrecursorCharge",
+                    "FragmentIon", "ProductCharge", "IsotopeLabelType", "Run",
+                    "Condition", "BioReplicate")
+    
+    max_per_group <- input %>%
+      group_by(across(all_of(group_cols))) %>%
+      summarise(max_intensity = max(Intensity, na.rm = TRUE), 
+                .groups = "drop")
+    
+    filtered <- input %>%
+      inner_join(max_per_group, by = group_cols) %>%
+      filter(Intensity == max_intensity) %>%
+      select(-max_intensity)
   }
   
   if (filter_few_obs) {
