@@ -88,7 +88,7 @@ cleanSpectronautChunk = function(input, output_path,
   
   if (filter_by_identified) {
     input <- dplyr::mutate(
-      input, Intensity = dplyr::if_else(Identified, NA_real_, Intensity))
+      input, Intensity = dplyr::if_else(Identified, Intensity, NA_real_))
   }
   
   if (filter_by_qvalue) {
