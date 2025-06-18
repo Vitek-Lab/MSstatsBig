@@ -97,7 +97,7 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
   MSstatsPreprocessBig(input_file, output_file_name,
                        backend, max_feature_count, filter_unique_peptides,
                        aggregate_psms, filter_few_obs, remove_annotation,
-                       connection)
+                       connection = connection)
 }
 
 
