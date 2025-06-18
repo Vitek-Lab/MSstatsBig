@@ -137,7 +137,7 @@ MSstatsPreprocessBigArrow <- function(input_file,
       summarise(max_intensity = max(Intensity, na.rm = TRUE), 
                 .groups = "drop")
     
-    filtered <- input %>%
+    input <- input %>%
       inner_join(max_per_group, by = group_cols) %>%
       filter(Intensity == max_intensity) %>%
       select(-max_intensity)
