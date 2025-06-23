@@ -136,11 +136,6 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           remove_annotation =  FALSE,
                                           calculateAnomalyScores=FALSE, 
                                           anomalyModelFeatures=c(),
-                                          anomalyModelFeatureTemporal=c(),
-                                          runOrder=NULL, 
-                                          n_trees=100, 
-                                          max_depth="auto", 
-                                          numberOfCores=1, 
                                           connection =  NULL) {
   reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
                        intensity, filter_by_excluded, filter_by_identified,
@@ -151,17 +146,6 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
     output_file_name, backend, max_feature_count,
     aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores, 
     anomalyModelFeatures, connection)
-  
-  if (calculateAnomalyScores){
-    
-    # TODO: Move this into the MSstatsAnomalyScores function
-    anomalyModelFeatures <- MSstatsConvert:::.standardizeColnames(
-      anomalyModelFeatures)
-    
-    msstats_data <- MSstatsConvert::MSstatsAnomalyScores(
-      dplyr::collect(msstats_data), anomalyModelFeatures, 
-      anomalyModelFeatureTemporal, runOrder, n_trees, max_depth, numberOfCores)
-  }
   
   return(msstats_data)
   
