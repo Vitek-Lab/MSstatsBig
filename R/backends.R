@@ -144,6 +144,9 @@ MSstatsPreprocessBigArrow <- function(input_file,
   }
   
   if (filter_few_obs) {
+    input <- dplyr::mutate(input,
+                             Feature = paste(PeptideSequence, PrecursorCharge,
+                                             FragmentIon, ProductCharge, sep = "_"))
     input <- dplyr::group_by(input, ProteinName, Feature)
     observation_counts <- dplyr::summarize(input,
                                            NumObs = sum(!is.na(Intensity) &
@@ -152,6 +155,7 @@ MSstatsPreprocessBigArrow <- function(input_file,
     observation_counts <- dplyr::select(observation_counts, -NumObs)
     input <- dplyr::anti_join(input, observation_counts,
                               by = c("ProteinName", "Feature"))
+    input <- dplyr::select(input, -Feature)
   }
   
   arrow::write_csv_arrow(input, file = output_file_name)
