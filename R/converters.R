@@ -15,6 +15,8 @@
 #' @param remove_annotation If TRUE, columns BioReplicate and Condition will be removed
 #' to reduce output file size. These will need to be added manually later before
 #' using dataProcess function. Only applicable to sparklyr backend.
+#' @param calculateAnomalyScores If TRUE, will carry anomaly model features through pipeline
+#' @param anomalyModelFeatures Character vector of column names to be carried through the pipeline
 #' @param connection Connection to a spark instance created with the
 #' `spark_connect` function from `sparklyr` package.
 #'
@@ -42,7 +44,7 @@
 MSstatsPreprocessBig <-  function(input_file,
                                  output_file_name,
                                  backend,
-                                 max_feature_count =  20,
+                                 max_feature_count =  100,
                                  filter_unique_peptides =  FALSE,
                                  aggregate_psms =  FALSE,
                                  filter_few_obs =  FALSE,
@@ -88,7 +90,7 @@ MSstatsPreprocessBig <-  function(input_file,
 #'
 bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
                                        backend,
-                                       max_feature_count =  20,
+                                       max_feature_count =  100,
                                        filter_unique_peptides =  FALSE,
                                        aggregate_psms =  FALSE,
                                        filter_few_obs =  FALSE,
@@ -104,6 +106,7 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' Convert out-of-memory Spectronaut files to MSstats format.
 #'
 #' @inheritParams MSstatsPreprocessBig
+#' @param intensity Name of the intensity column to be used in Spectronaut
 #' @param filter_by_excluded if TRUE, will filter by the `F.ExcludedFromQuantification` column.
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
 #' @param filter_by_qvalue if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
