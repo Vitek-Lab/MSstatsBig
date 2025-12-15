@@ -8,11 +8,13 @@ MSstatsPreprocessBig(
   input_file,
   output_file_name,
   backend,
-  max_feature_count = 20,
+  max_feature_count = 100,
   filter_unique_peptides = FALSE,
   aggregate_psms = FALSE,
   filter_few_obs = FALSE,
   remove_annotation = FALSE,
+  calculateAnomalyScores = FALSE,
+  anomalyModelFeatures = c(),
   connection = NULL
 )
 }
@@ -39,6 +41,10 @@ Please refer to the `Details` section for additional information.}
 \item{remove_annotation}{If TRUE, columns BioReplicate and Condition will be removed
 to reduce output file size. These will need to be added manually later before
 using dataProcess function. Only applicable to sparklyr backend.}
+
+\item{calculateAnomalyScores}{If TRUE, will carry anomaly model features through pipeline}
+
+\item{anomalyModelFeatures}{Character vector of column names to be carried through the pipeline}
 
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}

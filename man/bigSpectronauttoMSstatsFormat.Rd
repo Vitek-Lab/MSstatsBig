@@ -8,15 +8,18 @@ bigSpectronauttoMSstatsFormat(
   input_file,
   output_file_name,
   backend,
+  intensity = "F.NormalizedPeakArea",
   filter_by_excluded = FALSE,
   filter_by_identified = FALSE,
-  filter_by_qvalue = TRUE,
+  filter_by_qvalue = FALSE,
   qvalue_cutoff = 0.01,
-  max_feature_count = 20,
+  max_feature_count = 100,
   filter_unique_peptides = FALSE,
   aggregate_psms = FALSE,
   filter_few_obs = FALSE,
   remove_annotation = FALSE,
+  calculateAnomalyScores = FALSE,
+  anomalyModelFeatures = c(),
   connection = NULL
 )
 }
@@ -27,6 +30,8 @@ bigSpectronauttoMSstatsFormat(
 
 \item{backend}{"arrow" or "sparklyr". Option "sparklyr" requires a spark installation
 and connection to spark instance provided in the `connection` parameter.}
+
+\item{intensity}{Name of the intensity column to be used in Spectronaut}
 
 \item{filter_by_excluded}{if TRUE, will filter by the `F.ExcludedFromQuantification` column.}
 
@@ -51,6 +56,10 @@ Please refer to the `Details` section for additional information.}
 \item{remove_annotation}{If TRUE, columns BioReplicate and Condition will be removed
 to reduce output file size. These will need to be added manually later before
 using dataProcess function. Only applicable to sparklyr backend.}
+
+\item{calculateAnomalyScores}{If TRUE, will carry anomaly model features through pipeline}
+
+\item{anomalyModelFeatures}{Character vector of column names to be carried through the pipeline}
 
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}

@@ -15,6 +15,8 @@
 #' @param remove_annotation If TRUE, columns BioReplicate and Condition will be removed
 #' to reduce output file size. These will need to be added manually later before
 #' using dataProcess function. Only applicable to sparklyr backend.
+#' @param calculateAnomalyScores If TRUE, will carry anomaly model features through pipeline
+#' @param anomalyModelFeatures Character vector of column names to be carried through the pipeline
 #' @param connection Connection to a spark instance created with the
 #' `spark_connect` function from `sparklyr` package.
 #'
@@ -42,11 +44,13 @@
 MSstatsPreprocessBig <-  function(input_file,
                                  output_file_name,
                                  backend,
-                                 max_feature_count =  20,
+                                 max_feature_count =  100,
                                  filter_unique_peptides =  FALSE,
                                  aggregate_psms =  FALSE,
                                  filter_few_obs =  FALSE,
                                  remove_annotation =  FALSE,
+                                 calculateAnomalyScores = FALSE, 
+                                 anomalyModelFeatures = c(),
                                  connection =  NULL) {
   if (backend == "arrow") {
     MSstatsPreprocessBigArrow(input_file,
@@ -54,7 +58,9 @@ MSstatsPreprocessBig <-  function(input_file,
                               max_feature_count,
                               filter_unique_peptides,
                               aggregate_psms,
-                              filter_few_obs)
+                              filter_few_obs,
+                              calculateAnomalyScores, 
+                              anomalyModelFeatures)
   } else if (backend == "sparklyr") {
     MSstatsPreprocessBigSparklyr(connection, input, output_file_name,
                                  max_feature_count, filter_unique_peptides,
@@ -84,7 +90,7 @@ MSstatsPreprocessBig <-  function(input_file,
 #'
 bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
                                        backend,
-                                       max_feature_count =  20,
+                                       max_feature_count =  100,
                                        filter_unique_peptides =  FALSE,
                                        aggregate_psms =  FALSE,
                                        filter_few_obs =  FALSE,
@@ -93,13 +99,14 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
   MSstatsPreprocessBig(input_file, output_file_name,
                        backend, max_feature_count, filter_unique_peptides,
                        aggregate_psms, filter_few_obs, remove_annotation,
-                       connection)
+                       connection = connection)
 }
 
 
 #' Convert out-of-memory Spectronaut files to MSstats format.
 #'
 #' @inheritParams MSstatsPreprocessBig
+#' @param intensity Name of the intensity column to be used in Spectronaut
 #' @param filter_by_excluded if TRUE, will filter by the `F.ExcludedFromQuantification` column.
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
 #' @param filter_by_qvalue if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
@@ -120,23 +127,31 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #'
 bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           backend,
-                                          filter_by_excluded =  FALSE,
-                                          filter_by_identified =  FALSE,
-                                          filter_by_qvalue =  TRUE,
-                                          qvalue_cutoff =  0.01,
-                                          max_feature_count =  20,
+                                          intensity = "F.NormalizedPeakArea",
+                                          filter_by_excluded = FALSE,
+                                          filter_by_identified = FALSE,
+                                          filter_by_qvalue = FALSE,
+                                          qvalue_cutoff = 0.01,
+                                          max_feature_count = 100,
                                           filter_unique_peptides =  FALSE,
                                           aggregate_psms =  FALSE,
                                           filter_few_obs =  FALSE,
                                           remove_annotation =  FALSE,
+                                          calculateAnomalyScores=FALSE, 
+                                          anomalyModelFeatures=c(),
                                           connection =  NULL) {
   reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
-                       filter_by_excluded, filter_by_identified,
-                       filter_by_qvalue, qvalue_cutoff)
-  MSstatsPreprocessBig(paste0("reduce_output_", output_file_name),
-                       output_file_name, backend, max_feature_count,
-                       aggregate_psms, filter_few_obs,
-                       remove_annotation, connection)
+                       intensity, filter_by_excluded, filter_by_identified,
+                       filter_by_qvalue, qvalue_cutoff,
+                       calculateAnomalyScores, anomalyModelFeatures)
+  msstats_data <- MSstatsPreprocessBig(
+    paste0("reduce_output_", output_file_name),
+    output_file_name, backend, max_feature_count,
+    aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores, 
+    anomalyModelFeatures, connection)
+  
+  return(msstats_data)
+  
 }
 
 
