@@ -8,7 +8,7 @@ bigFragPipetoMSstatsFormat(
   input_file,
   output_file_name,
   backend,
-  max_feature_count = 20,
+  max_feature_count = 100,
   filter_unique_peptides = FALSE,
   aggregate_psms = FALSE,
   filter_few_obs = FALSE,
