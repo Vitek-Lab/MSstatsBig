@@ -2,6 +2,7 @@
 
 export(MSstatsAddAnnotationBig)
 export(MSstatsPreprocessBig)
+export(bigDIANNtoMSstatsFormat)
 export(bigFragPipetoMSstatsFormat)
 export(bigSpectronauttoMSstatsFormat)
 importFrom(MSstats,dataProcess)

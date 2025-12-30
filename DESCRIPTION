@@ -13,7 +13,7 @@ Description: MSstats package provide tools for preprocessing, summarization and
     processing larger than memory data sets.
 License: Artistic-2.0
 Encoding: UTF-8
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Imports: 
     arrow,
     DBI,
@@ -22,7 +22,9 @@ Imports:
     MSstatsConvert,
     readr,
     sparklyr,
-    utils
+    utils,
+    testthat,
+    mockery
 Suggests: 
     knitr,
     rmarkdown
