@@ -39,6 +39,44 @@ test_that("cleanDIANNChunk processes data correctly", {
   file.remove(output_file)
 })
 
+test_that("cleanDIANNChunk handles 'auto' quantification column correctly", {
+  output_file <- tempfile(fileext = ".csv")
+
+  # Data with wide format fragment quantification
+  diann_chunk_wide <- data.frame(
+    Run = "run1",
+    Protein.Names = "ProteinA",
+    Stripped.Sequence = "PEPTIDE",
+    Modified.Sequence = "PEPTIDE",
+    Precursor.Charge = 2,
+    Fr1Quantity = 100,
+    Fr2Quantity = 200,
+    Q.Value = 0.005,
+    Precursor.Mz = 400.5,
+    Fragment.Info = "y1^1/1;y2^1/1",
+    Lib.Q.Value = 0.001,
+    Lib.PG.Q.Value = 0.001,
+    stringsAsFactors = FALSE
+  )
+
+  MSstatsBig:::cleanDIANNChunk(diann_chunk_wide, output_file, MBR = TRUE,
+                               quantificationColumn = "auto", pos = 1)
+
+  result <- read.csv(output_file)
+
+  expect_equal(nrow(result), 2)
+  expect_equal(sort(result$Intensity), c(100, 200))
+  expect_equal(sort(result$FragmentIon), c("y1^1/1", "y2^1/1"))
+
+  file.remove(output_file)
+
+  # Test error when columns are missing
+  diann_chunk_missing <- diann_chunk_wide[, !grepl("Quantity", names(diann_chunk_wide))]
+  expect_error(MSstatsBig:::cleanDIANNChunk(diann_chunk_missing, output_file, MBR = TRUE,
+                                            quantificationColumn = "auto", pos = 1),
+               "No fragment quantification columns found")
+})
+
 # Test for the internal reduceBigDIANN function
 test_that("reduceBigDIANN processes a file correctly", {
   input_file <- tempfile(fileext = ".csv")
