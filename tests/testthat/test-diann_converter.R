@@ -77,6 +77,37 @@ test_that("cleanDIANNChunk handles 'auto' quantification column correctly", {
                "No fragment quantification columns found")
 })
 
+test_that("cleanDIANNChunk handles missing Fragment.Info by defaulting ProductCharge to 1", {
+  output_file <- tempfile(fileext = ".csv")
+
+  # Data with missing Fragment.Info (simulating it not being present)
+  diann_chunk_missing <- data.frame(
+    Run = "run1",
+    Protein.Names = "ProteinA",
+    Stripped.Sequence = "PEPTIDE",
+    Modified.Sequence = "PEPTIDE",
+    Precursor.Charge = 2,
+    Fragment.Quant.Corrected = 100,
+    Q.Value = 0.005,
+    Precursor.Mz = 400.5,
+    # Fragment.Info is missing
+    Lib.Q.Value = 0.001,
+    Lib.PG.Q.Value = 0.001,
+    stringsAsFactors = FALSE
+  )
+
+  MSstatsBig:::cleanDIANNChunk(diann_chunk_missing, output_file, MBR = TRUE,
+                               quantificationColumn = "Fragment.Quant.Corrected", pos = 1)
+
+  result <- read.csv(output_file)
+
+  expect_equal(nrow(result), 1)
+  expect_equal(result$ProductCharge, 1)
+  expect_true(is.na(result$FragmentIon))
+
+  file.remove(output_file)
+})
+
 # Test for the internal reduceBigDIANN function
 test_that("reduceBigDIANN processes a file correctly", {
   input_file <- tempfile(fileext = ".csv")
