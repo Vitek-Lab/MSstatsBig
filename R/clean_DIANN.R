@@ -1,3 +1,13 @@
+#' Read and clean a large DIANN file in chunks
+#' 
+#' @param input_file Path to the input DIANN file
+#' @param output_path Path to the output CSV file
+#' @param MBR Boolean, whether MBR was used
+#' @param quantificationColumn Name of the column containing intensity values
+#' @param global_qvalue_cutoff Global Q-value cutoff
+#' @param qvalue_cutoff Q-value cutoff
+#' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @return NULL. Writes to file.
 #' @keywords internal
 reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                            quantificationColumn = "FragmentQuantCorrected",
@@ -26,6 +36,17 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                             chunk_size = 1e6)
 }
 
+#' Clean a single chunk of DIANN data
+#' 
+#' @param input Data frame chunk
+#' @param output_path Path to output file
+#' @param MBR Boolean, whether MBR was used
+#' @param quantificationColumn Name of intensity column
+#' @param pos Chunk position (1 for first chunk, >1 for subsequent)
+#' @param global_qvalue_cutoff Global Q-value cutoff
+#' @param qvalue_cutoff Q-value cutoff
+#' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @return NULL
 #' @keywords internal
 cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
@@ -38,6 +59,7 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   
   # 2. Select required columns
   input <- .selectDIANNColumns(input, MBR, quantificationColumn)
+  input <- .cleanDIANNAddMissingColumns(input)
   
   # 3. Expand concatenated rows
   input <- .expandDIANNRows(input, quantificationColumn)
@@ -63,6 +85,11 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   NULL
 }
 
+#' Handle automatic detection of quantification columns
+#' 
+#' @param input Data frame
+#' @param quantificationColumn Name of column or "auto"
+#' @return List with input data frame and updated quantification column name
 #' @keywords internal
 .handleAutoQuantification <- function(input, quantificationColumn) {
   if (quantificationColumn == "auto") {
@@ -76,6 +103,12 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   list(input = input, quantificationColumn = quantificationColumn)
 }
 
+#' Select required columns from DIANN output
+#' 
+#' @param input Data frame
+#' @param MBR Boolean
+#' @param quantificationColumn Name of intensity column
+#' @return Data frame with selected columns
 #' @keywords internal
 .selectDIANNColumns <- function(input, MBR, quantificationColumn) {
   base_cols <- c('Protein.Names', 'Stripped.Sequence', 'Modified.Sequence', 
@@ -92,6 +125,26 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   dplyr::select(input, all_of(req_cols))
 }
 
+#' Add missing required columns
+#' 
+#' @param input Data frame
+#' @return Data frame with missing columns added
+#' @keywords internal
+.cleanDIANNAddMissingColumns <- function(input) {
+  if (!"Precursor.Mz" %in% colnames(input)) {
+    input <- dplyr::mutate(input, Precursor.Mz = NA)
+  }
+  if (!"Fragment.Info" %in% colnames(input)) {
+    input <- dplyr::mutate(input, Fragment.Info = NA)
+  }
+  input
+}
+
+#' Expand rows with multiple fragments
+#' 
+#' @param input Data frame
+#' @param quantificationColumn Name of intensity column
+#' @return Data frame with expanded rows
 #' @keywords internal
 .expandDIANNRows <- function(input, quantificationColumn) {
   split_cols <- intersect(c(quantificationColumn, "Fragment.Info"), colnames(input))
@@ -102,6 +155,11 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   }
 }
 
+#' Process fragment information strings
+#' 
+#' @param input Data frame
+#' @param quantificationColumn Name of intensity column
+#' @return Data frame with FragmentIon and ProductCharge columns
 #' @keywords internal
 .processDIANNFragmentInfo <- function(input, quantificationColumn) {
   # Convert Intensity to Numeric from Char strings
@@ -116,19 +174,30 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
       grepl("/", .data$Fragment.Info),
       # Extract charge (number right after "/" in string), default to 1 if parsing fails
       as.integer(stringr::str_extract(.data$Fragment.Info, "(?<=/)[0-9]+")),
-      1L
+      1L,
+      missing = 1L
     )
   )
 }
 
+#' Filter invalid fragments
+#' 
+#' @param input Data frame
+#' @param quantificationColumn Name of intensity column
+#' @return Filtered data frame
 #' @keywords internal
 .filterDIANNFragments <- function(input, quantificationColumn) {
   dplyr::filter(
     input,
-    !grepl("NH3|H2O", .data$FragmentIon) & !is.na(.data[[quantificationColumn]])
+    (!grepl("NH3|H2O", .data$FragmentIon) | is.na(.data$FragmentIon)) & !is.na(.data[[quantificationColumn]])
   )
 }
 
+#' Standardize column names to MSstats format
+#' 
+#' @param input Data frame
+#' @param quantificationColumn Name of intensity column
+#' @return Data frame with renamed columns
 #' @keywords internal
 .standardizeDIANNColumns <- function(input, quantificationColumn) {
   input <- dplyr::rename_with(input, .fn = function(x) gsub("\\.", "", x))
@@ -153,6 +222,14 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   dplyr::rename(input, any_of(rename_map))
 }
 
+#' Filter data by Q-values
+#' 
+#' @param input Data frame
+#' @param MBR Boolean
+#' @param global_qvalue_cutoff Numeric
+#' @param qvalue_cutoff Numeric
+#' @param pg_qvalue_cutoff Numeric
+#' @return Filtered data frame
 #' @keywords internal
 .filterDIANNByQValues <- function(input, MBR, global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff) {
   input <- dplyr::filter(input, DetectionQValue < global_qvalue_cutoff)
@@ -164,13 +241,16 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   }
 }
 
+#' Finalize columns for output
+#' 
+#' @param input Data frame
+#' @return Data frame with final columns
 #' @keywords internal
 .finalizeDIANNColumns <- function(input) {
   # Final column selection for MSstats format
   msstats_cols <- c("ProteinName", "PeptideSequence", "PeptideModifiedSequence", "PrecursorCharge", 
                     "FragmentIon", "ProductCharge", "Run", "Intensity")
   
-  # TODO: confirm with Tony -- are these three needed?
   
   # Add annotation columns if they exist
   if ("Condition" %in% colnames(input)) msstats_cols <- c(msstats_cols, "Condition")
@@ -184,6 +264,12 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   dplyr::select(input, all_of(final_cols))
 }
 
+#' Write chunk to file
+#' 
+#' @param input Data frame
+#' @param output_path Path to output file
+#' @param pos Chunk position
+#' @return NULL
 #' @keywords internal
 .writeDIANNChunk <- function(input, output_path, pos) {
   # Write to file
