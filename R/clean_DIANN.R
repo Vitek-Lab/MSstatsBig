@@ -31,7 +31,40 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01) {
-  # 0. Handle parquet files if needed
+  # 1. Handle "auto" quantification column
+  processed <- .handleAutoQuantification(input, quantificationColumn)
+  input <- processed$input
+  quantificationColumn <- processed$quantificationColumn
+  
+  # 2. Select required columns
+  input <- .selectDIANNColumns(input, MBR, quantificationColumn)
+  
+  # 3. Expand concatenated rows
+  input <- .expandDIANNRows(input, quantificationColumn)
+  
+  # 4. Process fragment info (extract intensity, charge, ion)
+  input <- .processDIANNFragmentInfo(input, quantificationColumn)
+  
+  # 5. Filter invalid fragments
+  input <- .filterDIANNFragments(input, quantificationColumn)
+  
+  # 6. Standardize column names
+  input <- .standardizeDIANNColumns(input, quantificationColumn)
+  
+  # 7. Filter by Q-values
+  input <- .filterDIANNByQValues(input, MBR, global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff)
+  
+  # 8. Finalize columns (select final set, add IsotopeLabelType)
+  input <- .finalizeDIANNColumns(input)
+  
+  # 9. Write to output
+  .writeDIANNChunk(input, output_path, pos)
+  
+  NULL
+}
+
+#' @keywords internal
+.handleAutoQuantification <- function(input, quantificationColumn) {
   if (quantificationColumn == "auto") {
     fragment_columns <- grep("^Fr[0-9]+Quantity$", colnames(input), value = TRUE)
     if (length(fragment_columns) == 0) {
@@ -40,8 +73,11 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
     input <- tidyr::unite(input, "FragmentQuantCorrected", all_of(fragment_columns), sep = ";")
     quantificationColumn <- "FragmentQuantCorrected"
   }
-  
-  # 1. Select required columns
+  list(input = input, quantificationColumn = quantificationColumn)
+}
+
+#' @keywords internal
+.selectDIANNColumns <- function(input, MBR, quantificationColumn) {
   base_cols <- c('Protein.Names', 'Stripped.Sequence', 'Modified.Sequence', 
                  'Precursor.Charge', quantificationColumn, 'Q.Value', 
                  'Precursor.Mz', 'Fragment.Info', 'Run')
@@ -53,23 +89,28 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   }
   
   req_cols <- intersect(c(base_cols, mbr_cols), colnames(input))
-  input <- dplyr::select(input, all_of(req_cols))
-  
-  # 2. Split concatenated values (un-nest)
+  dplyr::select(input, all_of(req_cols))
+}
+
+#' @keywords internal
+.expandDIANNRows <- function(input, quantificationColumn) {
   split_cols <- intersect(c(quantificationColumn, "Fragment.Info"), colnames(input))
   if (length(split_cols) > 0) {
-    input <- tidyr::separate_rows(input, all_of(split_cols), sep = ";")
+    tidyr::separate_rows(input, all_of(split_cols), sep = ";")
+  } else {
+    input
   }
-  
-  # 3. Process fragment information
+}
 
-  #Convert Intensity to Numeric from Char strings
+#' @keywords internal
+.processDIANNFragmentInfo <- function(input, quantificationColumn) {
+  # Convert Intensity to Numeric from Char strings
   input[[quantificationColumn]] <- as.numeric(input[[quantificationColumn]])
   
-  input <- dplyr::mutate(
+  dplyr::mutate(
     input,
     FragmentIon = sub('\\^\\.\\*', '', .data$Fragment.Info),
-
+    
     # Extract product charge
     ProductCharge = dplyr::if_else(
       grepl("/", .data$Fragment.Info),
@@ -78,19 +119,24 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
       1L
     )
   )
-  
-  # 4. Clean and filter data
-  input <- dplyr::filter(
+}
+
+#' @keywords internal
+.filterDIANNFragments <- function(input, quantificationColumn) {
+  dplyr::filter(
     input,
     !grepl("NH3|H2O", .data$FragmentIon) & !is.na(.data[[quantificationColumn]])
   )
-  
-  # 5. Rename columns to MSstats standard
+}
+
+#' @keywords internal
+.standardizeDIANNColumns <- function(input, quantificationColumn) {
   input <- dplyr::rename_with(input, .fn = function(x) gsub("\\.", "", x))
   
   # Standardize column names
+  clean_quant_col <- gsub("\\.", "", quantificationColumn)
   old_names <- c('ProteinNames', 'StrippedSequence', 'ModifiedSequence',
-                 'PrecursorCharge', gsub("\\.", "", quantificationColumn), 'QValue',
+                 'PrecursorCharge', clean_quant_col, 'QValue',
                  'PrecursorMz', 'FragmentIon', 'Run', 'ProductCharge')
   new_names <- c('ProteinName', 'PeptideSequence', 'PeptideModifiedSequence',
                  'PrecursorCharge', 'Intensity', 'DetectionQValue', 
@@ -98,39 +144,48 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
   
   current_names <- colnames(input)
   names_to_rename <- intersect(current_names, old_names)
-
+  
   # Create a named vector for renaming in the format c(new_name = old_name)
   new_names_subset <- new_names[match(names_to_rename, old_names)]
   rename_map <- setNames(names_to_rename, new_names_subset)
   rename_map <- rename_map[!is.na(names(rename_map))]
+  
+  dplyr::rename(input, any_of(rename_map))
+}
 
-  input <- dplyr::rename(input, any_of(rename_map))
-  # Filter by Q-values
+#' @keywords internal
+.filterDIANNByQValues <- function(input, MBR, global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff) {
   input <- dplyr::filter(input, DetectionQValue < global_qvalue_cutoff)
   
   if (MBR) {
-    input <- dplyr::filter(input, LibPGQValue < pg_qvalue_cutoff & LibQValue < qvalue_cutoff)
+    dplyr::filter(input, LibPGQValue < pg_qvalue_cutoff & LibQValue < qvalue_cutoff)
   } else {
-    input <- dplyr::filter(input, GlobalPGQValue < pg_qvalue_cutoff & GlobalQValue < qvalue_cutoff)
+    dplyr::filter(input, GlobalPGQValue < pg_qvalue_cutoff & GlobalQValue < qvalue_cutoff)
   }
-  
+}
+
+#' @keywords internal
+.finalizeDIANNColumns <- function(input) {
   # Final column selection for MSstats format
   msstats_cols <- c("ProteinName", "PeptideSequence", "PeptideModifiedSequence", "PrecursorCharge", 
                     "FragmentIon", "ProductCharge", "Run", "Intensity")
   
-  #TODO: confirm with Tony -- are these three needed?
+  # TODO: confirm with Tony -- are these three needed?
   
   # Add annotation columns if they exist
   if ("Condition" %in% colnames(input)) msstats_cols <- c(msstats_cols, "Condition")
   if ("BioReplicate" %in% colnames(input)) msstats_cols <- c(msstats_cols, "BioReplicate")
-   
+  
   # Add IsotopeLabelType, assuming Light for DIANN
   input$IsotopeLabelType <- "L"
   msstats_cols <- c(msstats_cols, "IsotopeLabelType")
   
   final_cols <- intersect(msstats_cols, colnames(input))
-  input <- dplyr::select(input, all_of(final_cols))
-  
+  dplyr::select(input, all_of(final_cols))
+}
+
+#' @keywords internal
+.writeDIANNChunk <- function(input, output_path, pos) {
   # Write to file
   if (!is.null(pos)) {
     if (pos == 1) {
@@ -139,5 +194,4 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
       readr::write_csv(input, file = output_path, append = TRUE)
     }
   }
-  NULL
 }
