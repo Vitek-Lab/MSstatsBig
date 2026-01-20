@@ -31,6 +31,15 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01) {
+  # 0. Handle parquet files if needed
+  if (quantificationColumn == "auto") {
+    fragment_columns <- grep("^Fr[0-9]+Quantity$", colnames(input), value = TRUE)
+    if (length(fragment_columns) == 0) {
+      stop("No fragment quantification columns found. Please check your input.")
+    }
+    input <- tidyr::unite(input, "FragmentQuantCorrected", all_of(fragment_columns), sep = ";")
+    quantificationColumn <- "FragmentQuantCorrected"
+  }
   
   # 1. Select required columns
   base_cols <- c('Protein.Names', 'Stripped.Sequence', 'Modified.Sequence', 
