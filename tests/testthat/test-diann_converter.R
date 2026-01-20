@@ -16,7 +16,7 @@ test_that("cleanDIANNChunk processes data correctly", {
     Q.Value = 0.005,
     Precursor.Mz = 400.5,
     Fragment.Info = "y7^1/1;b3-H2O^1/1", # One valid, one to be filtered
-    Lib.Q.Value = 0.01,
+    Lib.Q.Value = 0.001,
     Lib.PG.Q.Value = 0.001,
     stringsAsFactors = FALSE
   )
@@ -54,7 +54,7 @@ test_that("reduceBigDIANN processes a file correctly", {
     Q.Value = c(0.005, 0.006),
     Precursor.Mz = c(400.5, 500.5),
     Fragment.Info = c("y7^1/1;b3-H2O^1/1", "y5^1/2"),
-    Lib.Q.Value = c(0.01, 0.02),
+    Lib.Q.Value = c(0.001, 0.002),
     Lib.PG.Q.Value = c(0.001, 0.002),
     stringsAsFactors = FALSE
   )
@@ -81,10 +81,10 @@ test_that("bigDIANNtoMSstatsFormat works with arrow backend", {
 
   # 4 features for one protein. Feature selection should pick the top 2.
   diann_data <- rbind(
-    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(1000, 1100), Q.Value = 0.01, Precursor.Mz = 500, Fragment.Info = "y1", Lib.Q.Value = 0.01, Lib.PG.Q.Value = 0.01),
-    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(500, 600), Q.Value = 0.01, Precursor.Mz = 500, Fragment.Info = "y2", Lib.Q.Value = 0.01, Lib.PG.Q.Value = 0.01),
-    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(100, 100), Q.Value = 0.01, Precursor.Mz = 500, Fragment.Info = "y3", Lib.Q.Value = 0.01, Lib.PG.Q.Value = 0.01),
-    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(2000, 2100), Q.Value = 0.01, Precursor.Mz = 500, Fragment.Info = "y4", Lib.Q.Value = 0.01, Lib.PG.Q.Value = 0.01)
+    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(1000, 1100), Q.Value = 0.001, Precursor.Mz = 500, Fragment.Info = "y1", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001),
+    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(500, 600), Q.Value = 0.001, Precursor.Mz = 500, Fragment.Info = "y2", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001),
+    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(100, 100), Q.Value = 0.001, Precursor.Mz = 500, Fragment.Info = "y3", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001),
+    data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(2000, 2100), Q.Value = 0.001, Precursor.Mz = 500, Fragment.Info = "y4", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001)
   )
   write.csv(diann_data, input_file, row.names = FALSE)
 

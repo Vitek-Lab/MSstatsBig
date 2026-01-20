@@ -22,10 +22,10 @@ Imports:
     MSstatsConvert,
     readr,
     sparklyr,
-    utils,
+    utils
+Suggests:
     testthat,
-    mockery
-Suggests: 
+    mockery,
     knitr,
     rmarkdown
 VignetteBuilder: knitr

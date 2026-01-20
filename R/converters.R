@@ -159,7 +159,7 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
 #'
 #' @inheritParams MSstatsPreprocessBig
 #' @param MBR True if analysis was done with match between runs.
-#' @param quantificationColumn Use 'FragmentQuantCorrected'(default) column for quantified intensities for DIANN 1.8.x.
+#' @param quantificationColumn Use 'Fragment.Quant.Corrected'(default) column for quantified intensities for DIANN 1.8.x.
 #' Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x. 
 #'
 #' @export

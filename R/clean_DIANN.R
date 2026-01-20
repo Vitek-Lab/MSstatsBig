@@ -1,6 +1,9 @@
 #' @keywords internal
 reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
-                           quantificationColumn = "FragmentQuantCorrected") {
+                           quantificationColumn = "FragmentQuantCorrected",
+                           global_qvalue_cutoff = 0.01,
+                           qvalue_cutoff = 0.01,
+                           pg_qvalue_cutoff = 0.01) {
   if (grepl("csv", input_file)) {
     delim = ","
   } else if (grepl("tsv|xls", input_file)) {
@@ -13,7 +16,10 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                                                   output_path,
                                                   MBR,
                                                   quantificationColumn,
-                                                  pos)
+                                                  pos,
+                                                  global_qvalue_cutoff,
+                                                  qvalue_cutoff,
+                                                  pg_qvalue_cutoff)
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(diann_chunk),
                             delim = delim,
@@ -21,7 +27,10 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
 }
 
 #' @keywords internal
-cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos) {
+cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
+                           global_qvalue_cutoff = 0.01,
+                           qvalue_cutoff = 0.01,
+                           pg_qvalue_cutoff = 0.01) {
   
   # 1. Select required columns
   base_cols <- c('Protein.Names', 'Stripped.Sequence', 'Modified.Sequence', 
@@ -44,14 +53,18 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos) {
   }
   
   # 3. Process fragment information
+
+  #Convert Intensity to Numeric from Char strings
   input[[quantificationColumn]] <- as.numeric(input[[quantificationColumn]])
   
   input <- dplyr::mutate(
     input,
     FragmentIon = sub('\\^\\.\\*', '', .data$Fragment.Info),
+
+    # Extract product charge
     ProductCharge = dplyr::if_else(
       grepl("/", .data$Fragment.Info),
-      # Extract charge, default to 1 if parsing fails
+      # Extract charge (number right after "/" in string), default to 1 if parsing fails
       as.integer(stringr::str_extract(.data$Fragment.Info, "(?<=/)[0-9]+")),
       1L
     )
@@ -83,6 +96,14 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos) {
   rename_map <- rename_map[!is.na(names(rename_map))]
 
   input <- dplyr::rename(input, any_of(rename_map))
+  # Filter by Q-values
+  input <- dplyr::filter(input, DetectionQValue < global_qvalue_cutoff)
+  
+  if (MBR) {
+    input <- dplyr::filter(input, LibPGQValue < pg_qvalue_cutoff & LibQValue < qvalue_cutoff)
+  } else {
+    input <- dplyr::filter(input, GlobalPGQValue < pg_qvalue_cutoff & GlobalQValue < qvalue_cutoff)
+  }
   
   # Final column selection for MSstats format
   msstats_cols <- c("ProteinName", "PeptideSequence", "PeptideModifiedSequence", "PrecursorCharge", 
