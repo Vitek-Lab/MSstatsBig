@@ -10,7 +10,7 @@
 #' @return NULL. Writes to file.
 #' @keywords internal
 reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
-                           quantificationColumn = "FragmentQuantCorrected",
+                           quantificationColumn = "Fragment.Quant.Corrected",
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01) {
@@ -164,6 +164,13 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
 .processDIANNFragmentInfo <- function(input, quantificationColumn) {
   # Convert Intensity to Numeric from Char strings
   input[[quantificationColumn]] <- as.numeric(input[[quantificationColumn]])
+  
+  # Generate fragment info if missing
+  if (all(is.na(input$Fragment.Info))) {
+    input <- dplyr::group_by(input, Protein.Names, Modified.Sequence, Precursor.Charge, Run)
+    input <- dplyr::mutate(input, Fragment.Info = paste0("Frag", dplyr::row_number()))
+    input <- dplyr::ungroup(input)
+  }
   
   dplyr::mutate(
     input,

@@ -103,7 +103,7 @@ test_that("cleanDIANNChunk handles missing Fragment.Info by defaulting ProductCh
 
   expect_equal(nrow(result), 1)
   expect_equal(result$ProductCharge, 1)
-  expect_true(is.na(result$FragmentIon))
+  expect_equal(result$FragmentIon, "Frag1")
 
   file.remove(output_file)
 })
@@ -146,7 +146,7 @@ test_that("reduceBigDIANN processes a file correctly", {
 # End-to-end test for bigDIANNtoMSstatsFormat
 test_that("bigDIANNtoMSstatsFormat works with arrow backend", {
   input_file <- tempfile(fileext = ".csv")
-  output_file <- "test_diann_output.csv"
+  output_file <- basename(tempfile(fileext = ".csv"))
 
   # 4 features for one protein. Feature selection should pick the top 2.
   diann_data <- rbind(
