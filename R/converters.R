@@ -155,6 +155,50 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
 }
 
 
+#' Convert out-of-memory DIANN files to MSstats format.
+#'
+#' @inheritParams MSstatsPreprocessBig
+#' @param MBR True if analysis was done with match between runs.
+#' @param quantificationColumn Use 'Fragment.Quant.Corrected'(default) column for quantified intensities for DIANN 1.8.x.
+#' Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x. 
+#'
+#' @export
+#'
+#' @return either arrow object or sparklyr table that can be optionally collected
+#' into memory by using dplyr::collect function.
+#'
+bigDIANNtoMSstatsFormat <- function(input_file, 
+                                    output_file_name,
+                                    backend,
+                                    MBR = TRUE,
+                                    quantificationColumn = "Fragment.Quant.Corrected",
+                                    max_feature_count = 100,
+                                    filter_unique_peptides =  FALSE,
+                                    aggregate_psms =  FALSE,
+                                    filter_few_obs =  FALSE,
+                                    remove_annotation =  FALSE,
+                                    calculateAnomalyScores=FALSE, 
+                                    anomalyModelFeatures=c(),
+                                    connection =  NULL) {
+  
+  # Reduce and clean the DIANN report file in chunks
+  reduceBigDIANN(input_file, 
+                 paste0("reduce_output_", output_file_name),
+                 MBR,
+                 quantificationColumn)
+  
+  # Preprocess the cleaned data (feature selection, etc.)
+  msstats_data <- MSstatsPreprocessBig(
+    paste0("reduce_output_", output_file_name),
+    output_file_name, backend, max_feature_count,
+    filter_unique_peptides, aggregate_psms, filter_few_obs, 
+    remove_annotation, calculateAnomalyScores, 
+    anomalyModelFeatures, connection)
+  
+  return(msstats_data)
+}
+
+
 #' Merge annotation to output of MSstatsPreprocessBig
 #'
 #' @param input output of MSstatsPreprocessBig
@@ -185,4 +229,3 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
 MSstatsAddAnnotationBig <- function(input, annotation) {
   dplyr::inner_join(input, annotation, by = "Run")
 }
-
