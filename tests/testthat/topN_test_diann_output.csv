@@ -1,0 +1,5 @@
+"ProteinName","PeptideSequence","PeptideModifiedSequence","PrecursorCharge","FragmentIon","ProductCharge","Run","Intensity","IsotopeLabelType"
+"P1","PEPTIDE","PEPTIDE",2,"y1",1,"r1",1000,"L"
+"P1","PEPTIDE","PEPTIDE",2,"y1",1,"r2",1100,"L"
+"P1","PEPTIDE","PEPTIDE",2,"y4",1,"r1",2000,"L"
+"P1","PEPTIDE","PEPTIDE",2,"y4",1,"r2",2100,"L"
