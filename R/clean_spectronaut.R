@@ -117,12 +117,6 @@ cleanSpectronautChunk = function(input, output_path,
   }
   
   input <- dplyr::select(input, select_cols)
-  if (!is.null(pos)) {
-    if (pos == 1) {
-      readr::write_csv(input, file = output_path, append = FALSE)
-    } else {
-      readr::write_csv(input, file = output_path, append = TRUE)
-    }
-  }
+  .writeChunkToFile(input, output_path, pos)
   NULL
 }

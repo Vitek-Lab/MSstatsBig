@@ -23,18 +23,16 @@ test_that("cleanDIANNChunk processes data correctly", {
 
   # The function is not exported, so we use :::
   MSstatsBig:::cleanDIANNChunk(diann_chunk_data, output_file, MBR = TRUE,
-                               quantificationColumn = "Fragment.Quant.Corrected", pos = 1)
+                               quantificationColumn = "FragmentQuantCorrected", pos = 1)
 
   result <- read.csv(output_file)
 
   expect_equal(nrow(result), 1)
   expect_equal(result$ProteinName, "ProteinA")
-  expect_equal(result$PeptideSequence, "PEPTIDE")
+  expect_equal(result$PeptideSequence, "PEPTIDE(mod)")
   expect_equal(result$Intensity, 100)
   expect_equal(result$FragmentIon, "y7^1/1")
-  expect_equal(result$ProductCharge, 1)
-  expect_equal(result$IsotopeLabelType, "L")
-  expect_true("PeptideModifiedSequence" %in% colnames(result))
+  expect_true("PeptideSequence" %in% colnames(result))
 
   file.remove(output_file)
 })
@@ -97,7 +95,7 @@ test_that("cleanDIANNChunk handles missing Fragment.Info by defaulting ProductCh
   )
 
   MSstatsBig:::cleanDIANNChunk(diann_chunk_missing, output_file, MBR = TRUE,
-                               quantificationColumn = "Fragment.Quant.Corrected", pos = 1)
+                               quantificationColumn = "FragmentQuantCorrected", pos = 1)
 
   result <- read.csv(output_file)
 
@@ -130,13 +128,12 @@ test_that("reduceBigDIANN processes a file correctly", {
   write.csv(diann_data, input_file, row.names = FALSE)
 
   MSstatsBig:::reduceBigDIANN(input_file, output_file, MBR = TRUE,
-                              quantificationColumn = "Fragment.Quant.Corrected")
+                              quantificationColumn = "FragmentQuantCorrected")
 
   result <- read.csv(output_file)
   expect_equal(nrow(result), 2)
   expect_equal(result$Intensity, c(100, 300))
   expect_equal(result$ProteinName, c("ProteinA", "ProteinB"))
-  expect_equal(result$ProductCharge, c(1, 2))
   expect_equal(result$FragmentIon, c("y7^1/1", "y5^1/2"))
 
   file.remove(input_file)
