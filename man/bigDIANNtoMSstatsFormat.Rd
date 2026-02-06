@@ -30,8 +30,9 @@ and connection to spark instance provided in the `connection` parameter.}
 
 \item{MBR}{True if analysis was done with match between runs.}
 
-\item{quantificationColumn}{Use 'Fragment.Quant.Corrected'(default) column for quantified intensities for DIANN 1.8.x.
-Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x.}
+\item{quantificationColumn}{Use 'FragmentQuantCorrected'(default) column for quantified intensities for DIANN 1.8.x.
+Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x. 
+Use 'auto' for quantified intensities for DIANN 2.0+}
 
 \item{max_feature_count}{maximum number of features per protein. Features will
 be selected based on highest average intensity.}
