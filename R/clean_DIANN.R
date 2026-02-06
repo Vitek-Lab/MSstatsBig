@@ -41,15 +41,16 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
 #' @param global_qvalue_cutoff Global Q-value cutoff
 #' @param qvalue_cutoff Q-value cutoff
 #' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @importFrom MSstatsConvert MSstatsImport MSstatsClean
 #' @return NULL
 #' @keywords internal
 cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01) {
-    input = MSstatsConvert::MSstatsImport(list(input = input),
+    input = MSstatsImport(list(input = input),
                                           "MSstats", "DIANN")
-    input = MSstatsConvert::MSstatsClean(
+    input = MSstatsClean(
         input, MBR, quantificationColumn
         #Todo: Add , global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff params
     )

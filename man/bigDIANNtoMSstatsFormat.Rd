@@ -9,7 +9,7 @@ bigDIANNtoMSstatsFormat(
   output_file_name,
   backend,
   MBR = TRUE,
-  quantificationColumn = "Fragment.Quant.Corrected",
+  quantificationColumn = "FragmentQuantCorrected",
   max_feature_count = 100,
   filter_unique_peptides = FALSE,
   aggregate_psms = FALSE,
@@ -30,7 +30,7 @@ and connection to spark instance provided in the `connection` parameter.}
 
 \item{MBR}{True if analysis was done with match between runs.}
 
-\item{quantificationColumn}{Use 'FragmentQuantCorrected'(default) column for quantified intensities for DIANN 1.8.x.
+\item{quantificationColumn}{Use 'Fragment.Quant.Corrected'(default) column for quantified intensities for DIANN 1.8.x.
 Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x.}
 
 \item{max_feature_count}{maximum number of features per protein. Features will
