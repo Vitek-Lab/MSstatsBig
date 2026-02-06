@@ -158,10 +158,7 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
 #' Convert out-of-memory DIANN files to MSstats format.
 #'
 #' @inheritParams MSstatsPreprocessBig
-#' @param MBR True if analysis was done with match between runs.
-#' @param quantificationColumn Use 'FragmentQuantCorrected'(default) column for quantified intensities for DIANN 1.8.x.
-#' Use 'FragmentQuantRaw' for quantified intensities for DIANN 1.9.x. 
-#' Use 'auto' for quantified intensities for DIANN 2.0+
+#' @inheritParams MSstatsConvert::DIANNtoMSstatsFormat
 #'
 #' @export
 #'
@@ -173,6 +170,9 @@ bigDIANNtoMSstatsFormat <- function(input_file,
                                     backend,
                                     MBR = TRUE,
                                     quantificationColumn = "FragmentQuantCorrected",
+                                    global_qvalue_cutoff = 0.01,
+                                    qvalue_cutoff = 0.01,
+                                    pg_qvalue_cutoff = 0.01,
                                     max_feature_count = 100,
                                     filter_unique_peptides =  FALSE,
                                     aggregate_psms =  FALSE,
@@ -186,7 +186,8 @@ bigDIANNtoMSstatsFormat <- function(input_file,
   reduceBigDIANN(input_file, 
                  paste0("reduce_output_", output_file_name),
                  MBR,
-                 quantificationColumn)
+                 quantificationColumn,
+                 global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff)
   
   # Preprocess the cleaned data (feature selection, etc.)
   msstats_data <- MSstatsPreprocessBig(
