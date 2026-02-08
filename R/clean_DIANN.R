@@ -49,10 +49,14 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01) {
     input = MSstatsImport(list(input = input),
-                                          "MSstats", "DIANN")
+                          "MSstats", "DIANN")
     input = MSstatsClean(
-        input, MBR, quantificationColumn
-        #Todo: Add , global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff params
+        input, 
+        MBR = MBR, 
+        quantificationColumn = quantificationColumn,
+        global_qvalue_cutoff = global_qvalue_cutoff, 
+        qvalue_cutoff = qvalue_cutoff,
+        pg_qvalue_cutoff = pg_qvalue_cutoff
     )
     .writeChunkToFile(input, output_path, pos)
     NULL
