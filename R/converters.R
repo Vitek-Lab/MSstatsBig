@@ -166,6 +166,7 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
 #' into memory by using dplyr::collect function.
 #'
 bigDIANNtoMSstatsFormat <- function(input_file, 
+                                    annotation = NULL,
                                     output_file_name,
                                     backend,
                                     MBR = TRUE,
@@ -187,7 +188,7 @@ bigDIANNtoMSstatsFormat <- function(input_file,
                  paste0("reduce_output_", output_file_name),
                  MBR,
                  quantificationColumn,
-                 global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff)
+                 global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff, annotation)
   
   # Preprocess the cleaned data (feature selection, etc.)
   msstats_data <- MSstatsPreprocessBig(

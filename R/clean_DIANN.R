@@ -7,13 +7,15 @@
 #' @param global_qvalue_cutoff Global Q-value cutoff
 #' @param qvalue_cutoff Q-value cutoff
 #' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @param annotation Annotation file or data frame
 #' @return NULL. Writes to file.
 #' @keywords internal
 reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                            quantificationColumn = "FragmentQuantCorrected",
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
-                           pg_qvalue_cutoff = 0.01) {
+                           pg_qvalue_cutoff = 0.01,
+                           annotation = NULL) {
   if (grepl("csv", input_file)) {
     delim = ","
   } else if (grepl("tsv|xls", input_file)) {
@@ -23,7 +25,7 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
   }
   
   diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR, quantificationColumn, pos,
-                     global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff)
+                     global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff, annotation)
 
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(diann_chunk),
@@ -41,13 +43,15 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
 #' @param global_qvalue_cutoff Global Q-value cutoff
 #' @param qvalue_cutoff Q-value cutoff
 #' @param pg_qvalue_cutoff Protein group Q-value cutoff
-#' @importFrom MSstatsConvert MSstatsImport MSstatsClean
+#' @param annotation Annotation file or data frame
+#' @importFrom MSstatsConvert MSstatsImport MSstatsClean MSstatsMakeAnnotation
 #' @return NULL
 #' @keywords internal
 cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
-                           pg_qvalue_cutoff = 0.01) {
+                           pg_qvalue_cutoff = 0.01,
+                           annotation = NULL) {
     input = MSstatsImport(list(input = input),
                           "MSstats", "DIANN")
     input = MSstatsClean(
@@ -58,6 +62,7 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
         qvalue_cutoff = qvalue_cutoff,
         pg_qvalue_cutoff = pg_qvalue_cutoff
     )
+    input = MSstatsMakeAnnotation(input, annotation)
     .writeChunkToFile(input, output_path, pos)
     NULL
 }
