@@ -1,9 +1,10 @@
 Package: MSstatsBig
 Type: Package
 Title: MSstats Preprocessing for Larger than Memory Data
-Version: 1.9.1
+Version: 1.9.2
 Authors@R: c(
-  person("Mateusz", "Staniak", email = "mtst@mstaniak.pl", role = c("aut", "cre")),
+  person("Anthony", "Wu", email = "wu.anthon@northeastern.edu", role = c("aut", "cre")),
+  person("Mateusz", "Staniak", email = "mtst@mstaniak.pl", role = "aut"),
   person("Devon", "Kohler", email = "kohler.d@northeastern.edu", role = "aut")) 
 Description: MSstats package provide tools for preprocessing, summarization and
     differential analysis of mass spectrometry (MS) proteomics data. Recently, 
