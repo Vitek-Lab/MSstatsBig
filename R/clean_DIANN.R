@@ -7,6 +7,8 @@
 #' @param global_qvalue_cutoff Global Q-value cutoff
 #' @param qvalue_cutoff Q-value cutoff
 #' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @param calculateAnomalyScores Boolean for MSstats+ Model
+#' @param anomalyModelFeatures Character vector of features to use for MSstats+ Model
 #' @param annotation Annotation file or data frame
 #' @return NULL. Writes to file.
 #' @keywords internal
@@ -15,6 +17,8 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01,
+                           calculateAnomalyScores=FALSE, 
+                           anomalyModelFeatures=c(),
                            annotation = NULL) {
   if (grepl("csv", input_file)) {
     delim = ","
@@ -24,8 +28,14 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
     delim <- ";"
   }
   
-  diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR, quantificationColumn, pos,
-                     global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff, annotation)
+  diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR, 
+                                                  quantificationColumn, pos,
+                                                  global_qvalue_cutoff, 
+                                                  qvalue_cutoff, 
+                                                  pg_qvalue_cutoff, 
+                                                  calculateAnomalyScores,
+                                                  anomalyModelFeatures,
+                                                  annotation)
 
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(diann_chunk),
@@ -43,6 +53,8 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
 #' @param global_qvalue_cutoff Global Q-value cutoff
 #' @param qvalue_cutoff Q-value cutoff
 #' @param pg_qvalue_cutoff Protein group Q-value cutoff
+#' @param calculateAnomalyScores Boolean for MSstats+ Model
+#' @param anomalyModelFeatures Character vector of features to use for MSstats+ Model
 #' @param annotation Annotation file or data frame
 #' @importFrom MSstatsConvert MSstatsImport MSstatsClean MSstatsMakeAnnotation
 #' @return NULL
@@ -51,6 +63,8 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01,
+                           calculateAnomalyScores=FALSE,
+                           anomalyModelFeatures = c(),
                            annotation = NULL) {
     input = MSstatsImport(list(input = input),
                           "MSstats", "DIANN")
@@ -60,7 +74,9 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
         quantificationColumn = quantificationColumn,
         global_qvalue_cutoff = global_qvalue_cutoff, 
         qvalue_cutoff = qvalue_cutoff,
-        pg_qvalue_cutoff = pg_qvalue_cutoff
+        pg_qvalue_cutoff = pg_qvalue_cutoff,
+        calculateAnomalyScores = calculateAnomalyScores,
+        anomalyModelFeatures = anomalyModelFeatures
     )
     input = MSstatsMakeAnnotation(input, annotation)
     .writeChunkToFile(input, output_path, pos)
