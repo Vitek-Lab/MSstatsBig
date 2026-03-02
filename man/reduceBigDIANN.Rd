@@ -11,7 +11,10 @@ reduceBigDIANN(
   quantificationColumn = "FragmentQuantCorrected",
   global_qvalue_cutoff = 0.01,
   qvalue_cutoff = 0.01,
-  pg_qvalue_cutoff = 0.01
+  pg_qvalue_cutoff = 0.01,
+  calculateAnomalyScores = FALSE,
+  anomalyModelFeatures = c(),
+  annotation = NULL
 )
 }
 \arguments{
@@ -28,6 +31,12 @@ reduceBigDIANN(
 \item{qvalue_cutoff}{Q-value cutoff}
 
 \item{pg_qvalue_cutoff}{Protein group Q-value cutoff}
+
+\item{calculateAnomalyScores}{Boolean for MSstats+ Model}
+
+\item{anomalyModelFeatures}{Character vector of features to use for MSstats+ Model}
+
+\item{annotation}{Annotation file or data frame}
 }
 \value{
 NULL. Writes to file.

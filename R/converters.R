@@ -188,7 +188,9 @@ bigDIANNtoMSstatsFormat <- function(input_file,
                  paste0("reduce_output_", output_file_name),
                  MBR,
                  quantificationColumn,
-                 global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff, annotation)
+                 global_qvalue_cutoff, qvalue_cutoff, pg_qvalue_cutoff, 
+                 calculateAnomalyScores, anomalyModelFeatures,
+                 annotation)
   
   # Preprocess the cleaned data (feature selection, etc.)
   msstats_data <- MSstatsPreprocessBig(

@@ -6,6 +6,7 @@
 \usage{
 bigDIANNtoMSstatsFormat(
   input_file,
+  annotation = NULL,
   output_file_name,
   backend,
   MBR = TRUE,
@@ -25,6 +26,8 @@ bigDIANNtoMSstatsFormat(
 }
 \arguments{
 \item{input_file}{name of the input text file in 10-column MSstats format.}
+
+\item{annotation}{name of 'annotation.txt' data which includes Condition, BioReplicate, Run.}
 
 \item{output_file_name}{name of an output file which will be saved after pre-processing}
 
