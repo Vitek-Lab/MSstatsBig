@@ -78,7 +78,7 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
         calculateAnomalyScores = calculateAnomalyScores,
         anomalyModelFeatures = anomalyModelFeatures
     )
-    input = MSstatsMakeAnnotation(input, annotation)
+    #input = MSstatsMakeAnnotation(input, annotation)
     .writeChunkToFile(input, output_path, pos)
     NULL
 }
