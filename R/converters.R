@@ -199,6 +199,9 @@ bigDIANNtoMSstatsFormat <- function(input_file,
     filter_unique_peptides, aggregate_psms, filter_few_obs, 
     remove_annotation, calculateAnomalyScores, 
     anomalyModelFeatures, connection)
+  # Merge annotation with the preprocessed data
+  if (!is.null(annotation)) {
+    msstats_data <- MSstatsConvert::mergeAnnotation(msstats_data, annotation)
   
   return(msstats_data)
 }
