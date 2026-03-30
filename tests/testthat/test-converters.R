@@ -93,3 +93,32 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   if (file.exists(output_file)) file.remove(output_file)
   if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
 })
+
+# test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
+#   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_input.tsv"
+#   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation.csv"
+# 
+#   # Skip test if the local files are not found (e.g. on CI/CD)
+#   skip_if_not(file.exists(input_file), "Local DIANN input file not found")
+#   skip_if_not(file.exists(annotation_file), "Local annotation file not found")
+# 
+#   annot <- read.csv(annotation_file)
+#   output_file <- "real_diann_output.csv"
+#   
+#   processed <- bigDIANNtoMSstatsFormat(
+#     input_file = input_file,
+#     annotation = annot,
+#     output_file_name = output_file,
+#     backend = "arrow"
+#   )
+#   
+#   result <- dplyr::collect(processed)
+# 
+#   expect_true(!is.null(result))
+#   expect_true(nrow(result) > 0)
+# 
+#   # Cleanup
+#   if (file.exists(output_file)) file.remove(output_file)
+#   if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
+#   if (file.exists(paste0("topN_", output_file))) file.remove(paste0("topN_", output_file))
+# })

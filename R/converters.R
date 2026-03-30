@@ -62,7 +62,7 @@ MSstatsPreprocessBig <-  function(input_file,
                               calculateAnomalyScores, 
                               anomalyModelFeatures)
   } else if (backend == "sparklyr") {
-    MSstatsPreprocessBigSparklyr(connection, input, output_file_name,
+    MSstatsPreprocessBigSparklyr(connection, input_file, output_file_name,
                                  max_feature_count, filter_unique_peptides,
                                  aggregate_psms, filter_few_obs,
                                  remove_annotation)
@@ -96,10 +96,16 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
                                        filter_few_obs =  FALSE,
                                        remove_annotation =  FALSE,
                                        connection =  NULL) {
-  MSstatsPreprocessBig(input_file, output_file_name,
-                       backend, max_feature_count, filter_unique_peptides,
-                       aggregate_psms, filter_few_obs, remove_annotation,
-                       connection = connection)
+  MSstatsPreprocessBig(
+    input_file = input_file, 
+    output_file_name = output_file_name,
+    backend = backend, 
+    max_feature_count = max_feature_count, 
+    filter_unique_peptides = filter_unique_peptides,
+    aggregate_psms = aggregate_psms, 
+    filter_few_obs = filter_few_obs, 
+    remove_annotation = remove_annotation,
+    connection = connection)
 }
 
 
@@ -145,10 +151,17 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                        filter_by_qvalue, qvalue_cutoff,
                        calculateAnomalyScores, anomalyModelFeatures)
   msstats_data <- MSstatsPreprocessBig(
-    paste0("reduce_output_", output_file_name),
-    output_file_name, backend, max_feature_count,
-    aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores, 
-    anomalyModelFeatures, connection)
+    input_file = paste0("reduce_output_", output_file_name),
+    output_file_name = output_file_name, 
+    backend = backend, 
+    max_feature_count = max_feature_count,
+    filter_unique_peptides = filter_unique_peptides,
+    aggregate_psms = aggregate_psms, 
+    filter_few_obs = filter_few_obs, 
+    remove_annotation = remove_annotation, 
+    calculateAnomalyScores = calculateAnomalyScores, 
+    anomalyModelFeatures = anomalyModelFeatures, 
+    connection = connection)
   
   return(msstats_data)
   
@@ -192,17 +205,44 @@ bigDIANNtoMSstatsFormat <- function(input_file,
                  calculateAnomalyScores, anomalyModelFeatures,
                  annotation)
   
+  reduced_file <- paste0("reduce_output_", output_file_name)
+  reduced <- arrow::open_dataset(reduced_file, format = "csv")
+
+  # Identify columns where Arrow inferred 'null' type (all values NA)
+  null_cols <- names(reduced$schema)[
+    vapply(reduced$schema$fields, function(f) f$type$ToString() == "null", logical(1))
+  ]
+  
+  if (length(null_cols) > 0) {
+    # Drop null-typed columns using a lazy select (no data loaded into memory)
+    reduced <- dplyr::select(reduced, -dplyr::all_of(null_cols))
+    
+    # Write back using Arrow's streaming writer — stays out-of-memory.
+    # write_dataset creates a directory, but open_dataset can read
+    # directories just as easily as single files.
+    cleaned_file <- paste0("cleaned_", output_file_name)
+    arrow::write_dataset(reduced, cleaned_file, format = "csv")
+    reduced_file <- cleaned_file
+  }
+  
   # Preprocess the cleaned data (feature selection, etc.)
   msstats_data <- MSstatsPreprocessBig(
-    paste0("reduce_output_", output_file_name),
-    output_file_name, backend, max_feature_count,
-    filter_unique_peptides, aggregate_psms, filter_few_obs, 
-    remove_annotation, calculateAnomalyScores, 
-    anomalyModelFeatures, connection)
+    input_file = reduced_file, # paste0("reduce_output_", output_file_name)
+    output_file_name = output_file_name, 
+    backend = backend, 
+    max_feature_count = max_feature_count,
+    filter_unique_peptides = filter_unique_peptides, 
+    aggregate_psms = aggregate_psms, 
+    filter_few_obs = filter_few_obs, 
+    remove_annotation = remove_annotation, 
+    calculateAnomalyScores = calculateAnomalyScores, 
+    anomalyModelFeatures = anomalyModelFeatures, 
+    connection = connection)
+  
   # Merge annotation with the preprocessed data
   if (!is.null(annotation)) {
-    msstats_data <- MSstatsConvert::mergeAnnotation(msstats_data, annotation)
-  
+    msstats_data <- MSstatsAddAnnotationBig(msstats_data, annotation)
+    }
   return(msstats_data)
 }
 
@@ -235,5 +275,19 @@ bigDIANNtoMSstatsFormat <- function(input_file,
 #' @return table of `input` and `annotation` merged by Run column.
 #'
 MSstatsAddAnnotationBig <- function(input, annotation) {
-  dplyr::inner_join(input, annotation, by = "Run")
+  join_keys <- "Run"
+  
+  # Use tbl_vars which works reliably on both Arrow
+  # datasets, arrow_dplyr_query objects, and data frames
+  input_cols <- dplyr::tbl_vars(input)
+  
+  overlap_cols <- setdiff(
+    intersect(input_cols, colnames(annotation)),
+    join_keys
+  )
+  if (length(overlap_cols) > 0) {
+    input <- dplyr::select(input, -dplyr::all_of(overlap_cols))
+  }
+  
+  dplyr::inner_join(input, annotation, by = join_keys)
 }

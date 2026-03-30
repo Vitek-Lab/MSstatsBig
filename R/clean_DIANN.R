@@ -20,12 +20,15 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                            calculateAnomalyScores=FALSE, 
                            anomalyModelFeatures=c(),
                            annotation = NULL) {
-  if (grepl("csv", input_file)) {
-    delim = ","
-  } else if (grepl("tsv|xls", input_file)) {
-    delim = "\t"
-  } else {
+  first_line <- readLines(input_file, n = 1)
+  if (grepl("\t", first_line)) {
+    delim <- "\t"
+  } else if (grepl(",", first_line)) {
+    delim <- ","
+  } else if (grepl(";", first_line)) {
     delim <- ";"
+  } else {
+    delim <- "\t"
   }
   
   diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR, 

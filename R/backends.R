@@ -95,13 +95,25 @@ MSstatsPreprocessBigArrow <- function(input_file,
                                       anomalyModelFeatures = c()) {
   input <- arrow::open_dataset(input_file, format = "csv")
   
+  # dynamically cast any columns Arrow inferred as 'null'
+  null_columns <- names(input$schema)[vapply(input$schema$fields, function(f) f$type$ToString() == "null", logical(1))]
+  if (length(null_columns) > 0) {
+    for (col in null_columns) {
+      input <- dplyr::mutate(input, !!rlang::sym(col) := as.numeric(!!rlang::sym(col)))
+    }
+  }
+
+  if ("PrecursorMz" %in% input$schema$names) {
+    input <- dplyr::mutate(input, PrecursorMz = as.numeric(PrecursorMz))
+  }
+  
   input <- dplyr::mutate(input,
                          Feature = paste(PeptideSequence, PrecursorCharge,
                                          FragmentIon, ProductCharge, sep = "_"))
   feature_counts <- dplyr::group_by(input, ProteinName, Feature)
   feature_counts <- dplyr::summarize(feature_counts,
                                      MeanAbundance = mean(Intensity,
-                                                          na.rm <- TRUE))
+                                                          na.rm = TRUE))
   feature_counts <- dplyr::collect(feature_counts)
   
   feature_counts <- dplyr::mutate(
@@ -112,11 +124,13 @@ MSstatsPreprocessBigArrow <- function(input_file,
                                   feature_rank <= max_feature_count)
   
   feature_counts <- dplyr::select(feature_counts, -MeanAbundance, -feature_rank)
-  input <- dplyr::inner_join(input, feature_counts,
+  input <- dplyr::inner_join(input, feature_counts, 
                              by = c("ProteinName", "Feature"))
   input <- dplyr::select(input, -Feature)
   
-  arrow::write_csv_arrow(input, file = paste0("topN_", output_file_name))
+  # Materialize the lazy Arrow query before writing to CSV for the intermediate file
+  input_to_write_topN <- input %>% dplyr::compute()
+  arrow::write_csv_arrow(input_to_write_topN, file = paste0("topN_", output_file_name))
   
   if (filter_unique_peptides) {
     pp_df <- dplyr::select(input, ProteinName, PeptideSequence)
@@ -126,7 +140,6 @@ MSstatsPreprocessBigArrow <- function(input_file,
     pp_df <- dplyr::select(pp_df, -NumProteins)
     input <- dplyr::anti_join(input, pp_df, by = "PeptideSequence")
   }
-  
   if (aggregate_psms) {
     group_cols <- c("ProteinName", "PeptideSequence", "PrecursorCharge",
                     "FragmentIon", "ProductCharge", "IsotopeLabelType", "Run",
@@ -158,7 +171,9 @@ MSstatsPreprocessBigArrow <- function(input_file,
     input <- dplyr::select(input, -Feature)
   }
   
-  arrow::write_csv_arrow(input, file = output_file_name)
+  # Materialize the lazy Arrow query before writing to CSV for the final output
+  input_to_write_final <- input %>% dplyr::compute()
+  arrow::write_csv_arrow(input_to_write_final, file = output_file_name)
   input
 }
 
