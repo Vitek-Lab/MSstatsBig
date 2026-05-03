@@ -128,9 +128,7 @@ MSstatsPreprocessBigArrow <- function(input_file,
                              by = c("ProteinName", "Feature"))
   input <- dplyr::select(input, -Feature)
   
-  # Materialize the lazy Arrow query before writing to CSV for the intermediate file
-  input_to_write_topN <- input %>% dplyr::compute()
-  arrow::write_csv_arrow(input_to_write_topN, file = paste0("topN_", output_file_name))
+  arrow::write_dataset(input, paste0("topN_", output_file_name), format = "csv")
   
   if (filter_unique_peptides) {
     pp_df <- dplyr::select(input, ProteinName, PeptideSequence)
@@ -171,9 +169,7 @@ MSstatsPreprocessBigArrow <- function(input_file,
     input <- dplyr::select(input, -Feature)
   }
   
-  # Materialize the lazy Arrow query before writing to CSV for the final output
-  input_to_write_final <- input %>% dplyr::compute()
-  arrow::write_csv_arrow(input_to_write_final, file = output_file_name)
+  arrow::write_dataset(input, output_file_name, format = "csv")
   input
 }
 
