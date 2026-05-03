@@ -54,9 +54,9 @@ test_that("MSstatsPreprocessBig performs feature selection correctly", {
   expect_equal(nrow(p2_result), 2)
   expect_true(all(p2_result$FragmentIon == "fragB"))
 
-  # Cleanup
-  file.remove(input_file)
-  if (file.exists(output_file)) file.remove(output_file)
+  # Cleanup — output may be a directory when backend = "arrow"
+  unlink(input_file, force = TRUE)
+  unlink(output_file, recursive = TRUE, force = TRUE)
 })
 
 test_that("bigSpectronauttoMSstatsFormat works correctly", {
@@ -89,9 +89,9 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   expect_equal(nrow(result), 2)
   expect_true(all(result$FragmentIon == "frag2"))
 
-  # Cleanup
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
 
 test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
@@ -123,10 +123,10 @@ test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data"
   expect_true(!is.null(result))
   expect_true(nrow(result) > 0)
 
-  # Cleanup
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
-  if (file.exists(paste0("topN_", output_file))) file.remove(paste0("topN_", output_file))
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
 })
 
 test_that("bigDIANNtoMSstatsFormat works with DIANN 2.0 parquet input", {
@@ -158,9 +158,9 @@ test_that("bigDIANNtoMSstatsFormat works with DIANN 2.0 parquet input", {
   expect_true(!is.null(result))
   expect_true(nrow(result) > 0)
 
-  # Cleanup
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
-  if (file.exists(paste0("topN_", output_file))) file.remove(paste0("topN_", output_file))
-  if (file.exists(paste0("cleaned_", output_file))) unlink(paste0("cleaned_", output_file), recursive = TRUE)
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("cleaned_", output_file), recursive = TRUE, force = TRUE)
 })
