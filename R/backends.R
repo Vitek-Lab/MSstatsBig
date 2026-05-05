@@ -128,7 +128,7 @@ MSstatsPreprocessBigArrow <- function(input_file,
                              by = c("ProteinName", "Feature"))
   input <- dplyr::select(input, -Feature)
   
-  arrow::write_dataset(input, paste0("topN_", output_file_name), format = "csv")
+  arrow::write_dataset(input, .prefixedPath("topN_", output_file_name), format = "csv")
   
   if (filter_unique_peptides) {
     pp_df <- dplyr::select(input, ProteinName, PeptideSequence)
