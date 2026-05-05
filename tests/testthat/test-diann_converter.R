@@ -167,10 +167,11 @@ test_that("bigDIANNtoMSstatsFormat works with arrow backend", {
   expect_true(all(c("y1", "y4") %in% unique(result$FragmentIon)))
   expect_false(any(c("y2", "y3") %in% unique(result$FragmentIon)))
 
-  # Cleanup
-  file.remove(input_file)
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(input_file, force = TRUE)
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
 })
 
 test_that("bigDIANNtoMSstatsFormat works with annotation", {
@@ -205,9 +206,10 @@ test_that("bigDIANNtoMSstatsFormat works with annotation", {
   expect_equal(result$Condition[result$Run == "r1"], "Disease")
   expect_equal(result$Condition[result$Run == "r2"], "Healthy")
 
-  # Cleanup
-  file.remove(input_file)
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
-  if (dir.exists(paste0("cleaned_", output_file))) unlink(paste0("cleaned_", output_file), recursive = TRUE)
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(input_file, force = TRUE)
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("cleaned_", output_file), recursive = TRUE, force = TRUE)
 })
