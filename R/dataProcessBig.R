@@ -220,10 +220,10 @@ dataProcessBig <- function(matter_dir,
                               else
                                   rep(0L, length(num_meas))
 
-            result_dt[, NumMeasuredFeature := num_meas]
-            result_dt[, MissingPercentage  := missing_pct]
-            result_dt[, more50missing      := missing_pct > 0.5]
-            result_dt[, NumImputedFeature  := num_imputed]
+            # result_dt[, NumMeasuredFeature := num_meas]
+            # result_dt[, MissingPercentage  := missing_pct]
+            # result_dt[, more50missing      := missing_pct > 0.5]
+            # result_dt[, NumImputedFeature  := num_imputed]
 
             result_dt
         }
@@ -265,15 +265,13 @@ dataProcessBig <- function(matter_dir,
         new = c("originalRUN", "GROUP",     "SUBJECT"),
         skip_absent = TRUE)
 
-    plv[, RUN := originalRUN]
+    # plv[, RUN := originalRUN]
 
-    plv[, TotalGroupMeasurements := sum(NumMeasuredFeature, na.rm = TRUE),
-        by = c("Protein", "GROUP", "LABEL")]
+    # plv[, TotalGroupMeasurements := sum(NumMeasuredFeature, na.rm = TRUE),
+        # by = c("Protein", "GROUP", "LABEL")]
 
-    out_cols <- c("Protein", "LABEL", "RUN", "originalRUN",
-                  "LogIntensities", "GROUP", "SUBJECT",
-                  "TotalGroupMeasurements", "NumMeasuredFeature",
-                  "MissingPercentage", "more50missing", "NumImputedFeature")
+    out_cols <- c("Protein", "LABEL", "originalRUN",
+                  "LogIntensities", "GROUP", "SUBJECT")
     out_cols <- intersect(out_cols, colnames(plv))
     plv <- plv[, out_cols, with = FALSE]
 

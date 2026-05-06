@@ -112,10 +112,11 @@ result$matter_bundle
 You can inspect the bundle pieces directly:
 
 ```{r inspect_metadata}
-proteins_meta <- read_parquet(result$matter_bundle$proteins)
-runs_meta     <- read_parquet(result$matter_bundle$runs)
-run_stats     <- read_parquet(result$matter_bundle$run_stats)
-manifest      <- readRDS(result$matter_bundle$manifest)
+# the paths are off when running it on the vignette
+proteins_meta <- read_parquet(paste(work_dir, result$matter_bundle$proteins, sep = "/"))
+runs_meta     <- read_parquet(paste(work_dir, result$matter_bundle$runs, sep = "/"))
+run_stats     <- read_parquet(paste(work_dir, result$matter_bundle$run_stats, sep = "/"))
+manifest      <- readRDS(paste(work_dir, result$matter_bundle$manifest, sep = "/"))
 
 head(proteins_meta)
 head(run_stats)
@@ -130,11 +131,12 @@ The `intensities.bin` backing file holds, for each protein *k*, a
 intensities <- matter_list(
     NULL,
     type     = "double",
-    path     = result$matter_bundle$intensities,
+    path     = paste(work_dir, result$matter_bundle$intensities, sep = "/"),
     lengths  = as.integer(proteins_meta$n_features) * manifest$n_runs,
     names    = proteins_meta$ProteinName,
     readonly = TRUE)
 
+matter::mem(intensities)
 # Pull one protein's matrix from disk on demand.
 k        <- 1L
 n_runs   <- manifest$n_runs
@@ -147,7 +149,7 @@ mat_k[1:5, 1:min(5, ncol(mat_k))]
 ## 2. Summarize with `dataProcessBig`
 
 ```{r data_process}
-plv <- dataProcessBig(
+plv <- MSstatsBig:::dataProcessBig(
     matter_dir      = result$matter_bundle$output_dir,
     output_file     = "ProteinLevelData.rds",
     n_top_feature   = 20L,           # post-normalization top-N
@@ -181,6 +183,10 @@ can wrap it for compatibility:
 ```{r group_comparison}
 library(MSstats)
 
+plv$more50missing = FALSE
+# plv$NumMeasuredFeature = 10
+plv$RUN = plv$originalRUN
+# plv$NumImputedFeature = 0
 summarized <- list(
     ProteinLevelData = as.data.frame(plv),
     FeatureLevelData = NULL,             # not produced by dataProcessBig
