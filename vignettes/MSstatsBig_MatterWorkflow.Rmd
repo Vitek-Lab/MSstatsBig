@@ -1,0 +1,253 @@
+---
+title: "Out-of-Core Spectronaut Workflow with matter and Arrow"
+author: "Tony Wu (<wu.anthon@northeastern.edu>)"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Out-of-Core Spectronaut Workflow with matter and Arrow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+## Overview
+
+This vignette demonstrates the matter-backed workflow in `MSstatsBig`:
+
+1. Convert a Spectronaut export to a **matter bundle** with
+   `bigSpectronauttoMSstatsFormat(convert_matter = TRUE)`.
+2. Summarize per protein in parallel with `dataProcessBig()`.
+
+Compared to the standard `MSstatsBig` → `MSstats::dataProcess` flow, this path
+keeps all per-protein data on disk (in a `matter_list`) and only loads one
+protein at a time during summarization. Peak RAM is bounded by the largest
+single protein, not by the total dataset size.
+
+## When to use this workflow
+
+The standard workflow is fine when the *post-preprocessing* output fits
+comfortably in RAM. Use the matter-backed workflow when:
+
+- The dataset has tens of thousands of proteins and hundreds of runs (DIA
+  scale).
+- You want to run summarization repeatedly (e.g., re-running with different
+  `n_top_feature` or imputation settings) without re-converting.
+- You need parallel summarization where workers should not each receive a
+  copy of the full feature-level table.
+
+## Pipeline
+
+```
+spectronaut_export.csv
+        │
+        │  bigSpectronauttoMSstatsFormat(convert_matter = TRUE)
+        │    ├── reduce + clean (existing path)
+        │    ├── arrow preprocessing (top-N feature selection)
+        │    └── .convertArrowToMatterList:
+        │         ├── lazy log2 transform
+        │         ├── per-run median (Arrow streaming aggregate)
+        │         ├── repartition by ProteinName
+        │         └── per-protein matter_list write (incremental)
+        ▼
+   matter bundle/
+        ├── intensities.bin       ← matter_list, one slot per protein
+        ├── run_stats.parquet     ← per-run median + n_obs
+        ├── proteins.parquet      ← k → ProteinName, n_features, n_runs
+        ├── features.parquet      ← per-protein feature ordering + metadata
+        ├── runs.parquet          ← row ordering + Condition / BioReplicate
+        └── manifest.rds          ← canonical run order, log2 flag
+        │
+        │  dataProcessBig()
+        │    └── per protein in parallel:
+        │         ├── load intensities[[k]] from disk
+        │         ├── equalize-medians normalize (vectorized)
+        │         ├── top-N feature selection (post-norm)
+        │         ├── pack to V3 format
+        │         └── MSstatsSummarizeSingleTMPV2 (impute + TMP)
+        ▼
+   ProteinLevelData.rds            ← single MSstats-format file
+```
+
+## Setup
+
+```{r load_package}
+library(MSstatsBig)
+library(arrow)
+library(matter)
+```
+
+## 1. Convert Spectronaut export to a matter bundle
+
+```{r convert}
+work_dir <- tempdir()
+setwd(work_dir)
+
+result <- bigSpectronauttoMSstatsFormat(
+    input_file        = system.file("extdata", "spectronaut_input.csv",
+                                    package = "MSstatsBig"),
+    output_file_name  = "preprocessed.csv",
+    backend           = "arrow",
+    intensity         = "F.NormalizedPeakArea",
+    filter_by_qvalue  = TRUE,
+    qvalue_cutoff     = 0.01,
+    max_feature_count = 20,             # top-N at conversion time
+    convert_matter    = TRUE,           # write the matter bundle
+    matter_output_dir = "spectronaut_bundle"
+)
+```
+
+`result` is a list with two elements when `convert_matter = TRUE`:
+
+- `result$data` — the Arrow lazy reference to the preprocessed CSV (same as
+  the non-matter path).
+- `result$matter_bundle` — file paths inside the bundle directory.
+
+```{r inspect_bundle}
+result$matter_bundle
+```
+
+You can inspect the bundle pieces directly:
+
+```{r inspect_metadata}
+proteins_meta <- read_parquet(result$matter_bundle$proteins)
+runs_meta     <- read_parquet(result$matter_bundle$runs)
+run_stats     <- read_parquet(result$matter_bundle$run_stats)
+manifest      <- readRDS(result$matter_bundle$manifest)
+
+head(proteins_meta)
+head(run_stats)
+manifest$canonical_run_order
+manifest$log2_intensity     # TRUE — log2 was applied during conversion
+```
+
+The `intensities.bin` backing file holds, for each protein *k*, a
+`(n_runs × n_features)` matrix flattened column-major as `double`:
+
+```{r inspect_intensities}
+intensities <- matter_list(
+    NULL,
+    type     = "double",
+    path     = result$matter_bundle$intensities,
+    lengths  = as.integer(proteins_meta$n_features) * manifest$n_runs,
+    names    = proteins_meta$ProteinName,
+    readonly = TRUE)
+
+# Pull one protein's matrix from disk on demand.
+k        <- 1L
+n_runs   <- manifest$n_runs
+n_feat_k <- proteins_meta$n_features[k]
+mat_k    <- matrix(intensities[[k]], nrow = n_runs, ncol = n_feat_k)
+dim(mat_k)
+mat_k[1:5, 1:min(5, ncol(mat_k))]
+```
+
+## 2. Summarize with `dataProcessBig`
+
+```{r data_process}
+plv <- dataProcessBig(
+    matter_dir      = result$matter_bundle$output_dir,
+    output_file     = "ProteinLevelData.rds",
+    n_top_feature   = 20L,           # post-normalization top-N
+    impute          = TRUE,          # AFT survival imputation
+    censored_symbol = "NA",          # NAs treated as below detection
+    remove50missing = FALSE,
+    numberOfCores   = 4L,
+    verbose         = TRUE
+)
+
+head(plv)
+```
+
+`plv` is a `data.table` matching the MSstats `ProteinLevelData` schema:
+
+```
+Protein, LABEL, RUN, originalRUN, LogIntensities,
+GROUP, SUBJECT, TotalGroupMeasurements,
+NumMeasuredFeature, MissingPercentage, more50missing, NumImputedFeature
+```
+
+It is also written to the path you passed via `output_file` (RDS by default;
+parquet or CSV when the extension implies it).
+
+## 3. Hand off to MSstats `groupComparison`
+
+`dataProcessBig` produces only the `ProteinLevelData` slot. `MSstats::groupComparison`
+expects a list with `ProteinLevelData` (and optionally `FeatureLevelData`). You
+can wrap it for compatibility:
+
+```{r group_comparison}
+library(MSstats)
+
+summarized <- list(
+    ProteinLevelData = as.data.frame(plv),
+    FeatureLevelData = NULL,             # not produced by dataProcessBig
+    SummaryMethod    = "TMP"
+)
+
+# Example contrast for the Spectronaut sample (adjust to your conditions)
+groups <- unique(plv$GROUP)
+comparison <- matrix(c(-1, 1), nrow = 1, byrow = TRUE,
+                     dimnames = list("contrast1", groups[1:2]))
+
+results <- groupComparison(
+    contrast.matrix = comparison,
+    data            = summarized,
+    use_log_file    = FALSE)
+
+head(results$ComparisonResult)
+```
+
+## Memory profile at a glance
+
+| Step                                  | Peak RAM held by main process     |
+|---------------------------------------|------------------------------------|
+| Per-run median scan (Arrow)           | one row per run                    |
+| Distinct features scan (Arrow)        | one row per (protein, feature)     |
+| `arrow::write_dataset` repartition    | one Arrow batch (streaming)        |
+| `matter_list` pre-allocation          | empty backing file, no data        |
+| Per-protein write loop                | one protein's matrix at a time     |
+| `dataProcessBig` summarization        | one protein per worker             |
+| ProteinLevelData assembly             | the final result table             |
+
+The full preprocessed table is **never** materialized as a data.frame in
+memory.
+
+## Re-running summarization on the same bundle
+
+A useful property of the bundle: it's pure data, no MSstats state. You can
+re-run summarization with different parameters without re-converting:
+
+```{r rerun}
+# Try a different feature count and imputation off
+plv_no_impute <- dataProcessBig(
+    matter_dir    = result$matter_bundle$output_dir,
+    output_file   = "ProteinLevelData_noimpute.rds",
+    n_top_feature = 10L,
+    impute        = FALSE,
+    numberOfCores = 4L)
+```
+
+## Assumptions and limitations
+
+The current matter workflow assumes:
+
+- **No duplicate (Run, Feature) pairs** — one intensity per cell.
+- **No fractions** — `runs.parquet` has one row per Run.
+- **Unlabeled experiment** — single `IsotopeLabelType`. SILAC/iTRAQ datasets
+  will load but the per-protein matrix layout treats each label as an
+  independent feature column rather than pairing them.
+- **`matter` and `arrow` packages installed**.
+
+`run_stats.parquet` was computed across all observations (not filtered by
+reference label), so the equalize-medians normalization is exact for
+unlabeled experiments and approximate for labeled ones until the SILAC path
+lands.
+
+## Session info
+
+```{r session_info, eval = TRUE}
+sessionInfo()
+```
