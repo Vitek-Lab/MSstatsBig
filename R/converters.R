@@ -111,6 +111,13 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
 #' @param filter_by_qvalue if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
 #' @param qvalue_cutoff cutoff which will be used for q-value filtering.
+#' @param convert_matter if TRUE, also write a matter-backed bundle of
+#'   per-protein (runs x features) matrices, log2 intensities, and per-run
+#'   median statistics. Requires the `matter` and `arrow` packages and
+#'   `backend = "arrow"`. Assumes one (Run, Feature) value per cell and no
+#'   fractions.
+#' @param matter_output_dir directory for the matter bundle when
+#'   `convert_matter = TRUE`. Defaults to `paste0(output_file_name, "_matter")`.
 #'
 #' @export
 #'
@@ -123,7 +130,9 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' head(converted_data)
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
-#' into memory by using dplyr::collect function.
+#' into memory by using dplyr::collect function. When `convert_matter = TRUE`,
+#' returns a list with the arrow object under `$data` and the matter bundle
+#' file paths under `$matter_bundle`.
 #'
 bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           backend,
@@ -137,9 +146,11 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           aggregate_psms =  FALSE,
                                           filter_few_obs =  FALSE,
                                           remove_annotation =  FALSE,
-                                          calculateAnomalyScores=FALSE, 
+                                          calculateAnomalyScores=FALSE,
                                           anomalyModelFeatures=c(),
-                                          connection =  NULL) {
+                                          connection =  NULL,
+                                          convert_matter = FALSE,
+                                          matter_output_dir = NULL) {
   reduceBigSpectronaut(input_file, paste0("reduce_output_", output_file_name),
                        intensity, filter_by_excluded, filter_by_identified,
                        filter_by_qvalue, qvalue_cutoff,
@@ -147,11 +158,21 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
   msstats_data <- MSstatsPreprocessBig(
     paste0("reduce_output_", output_file_name),
     output_file_name, backend, max_feature_count,
-    aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores, 
+    aggregate_psms, filter_few_obs, remove_annotation, calculateAnomalyScores,
     anomalyModelFeatures, connection)
-  
+
+  if (convert_matter) {
+    if (backend != "arrow")
+      stop("convert_matter = TRUE requires backend = 'arrow'.")
+    if (is.null(matter_output_dir))
+      matter_output_dir <- paste0(output_file_name, "_matter")
+    matter_bundle <- .convertArrowToMatterList(
+      msstats_data, matter_output_dir, log2_transform = TRUE)
+    return(list(data = msstats_data, matter_bundle = matter_bundle))
+  }
+
   return(msstats_data)
-  
+
 }
 
 
