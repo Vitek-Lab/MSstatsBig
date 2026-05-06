@@ -153,22 +153,35 @@
     # Re-open the partitioned dataset for predicate-pushdown reads per protein.
     partitioned_ds <- arrow::open_dataset(tmp_partitioned)
 
-    # ── 5. Stream partitions, build packed_list one protein at a time ────────
+    # ── 5. Pre-allocate matter_list (empty backing file, sized slots) ────────
     #
-    # Reads are streamed (one protein's partition per iteration); only the
-    # accumulated packed_list is held in RAM, which equals the eventual
-    # on-disk size of intensities.bin (numerics only, no string overhead).
-    if (verbose) message("[convert_matter] packing per-protein matrices ...")
+    # matter_list with NULL data + per-element `lengths` creates the backing
+    # file with one slot per protein at the right offsets.  Subsequent
+    # `intensities[[i]] <- vec` writes directly to disk via matter's C API.
+    if (verbose) message("[convert_matter] pre-allocating matter_list ...")
+
+    backing_file <- file.path(output_dir, "intensities.bin")
+    intensities <- matter::matter_list(
+        NULL,
+        type    = "double",
+        path    = backing_file,
+        lengths = as.integer(lengths_vec),
+        names   = proteins
+    )
+
+    # ── 6. Stream partitions, write each protein's slot directly ─────────────
+    #
+    # Peak RAM = one protein's matrix.  No accumulating list — every
+    # iteration drops the previous protein's data after writing.
+    if (verbose) message("[convert_matter] streaming per-protein matrices to disk ...")
 
     feat_by_prot <- split(feature_meta$Feature, feature_meta$ProteinName)
 
-    packed_list <- vector("list", n_proteins)
     for (i in seq_len(n_proteins)) {
         prot       <- proteins[i]
         prot_feats <- feat_by_prot[[prot]]
 
-        # Single-protein scan via predicate pushdown — only this protein's
-        # partition file is read.
+        # Single-protein scan via predicate pushdown.
         prot_data <- partitioned_ds |>
             dplyr::filter(ProteinName == prot) |>
             dplyr::select(Run, Feature, Intensity) |>
@@ -184,25 +197,14 @@
             mat[cbind(run_idx[valid], feat_idx[valid])] <-
                 prot_data$Intensity[valid]
 
-        packed_list[[i]] <- as.numeric(mat)   # column-major flatten
+        intensities[[i]] <- as.numeric(mat)   # writes directly to backing file
+
+        rm(prot_data, mat)
 
         if (verbose && i %% progress_every == 0L)
-            message(sprintf("[convert_matter]   packed %d / %d proteins",
+            message(sprintf("[convert_matter]   wrote %d / %d proteins to disk",
                             i, n_proteins))
     }
-
-    # ── 6. Materialize matter_list and clean up partition staging dir ────────
-    if (verbose) message("[convert_matter] writing matter_list backing file ...")
-
-    backing_file <- file.path(output_dir, "intensities.bin")
-    intensities <- matter::matter_list(
-        packed_list,
-        type  = "double",
-        path  = backing_file,
-        names = proteins
-    )
-
-    rm(packed_list); gc(verbose = FALSE)
 
     unlink(tmp_partitioned, recursive = TRUE)
 
