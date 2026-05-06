@@ -17,6 +17,7 @@ Encoding: UTF-8
 RoxygenNote: 7.3.3
 Imports:
     arrow,
+    BiocParallel,
     data.table,
     DBI,
     dplyr,
