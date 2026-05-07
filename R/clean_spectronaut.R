@@ -37,7 +37,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
   # Arrow's CSV reader handles all three the same way through
   # CsvParseOptions$delimiter.
   parse_opts   <- arrow::CsvParseOptions$create(delimiter = delim)
-  convert_opts <- arrow::CsvConvertOptions$create(include_columns = needed_cols)
+  convert_opts <- arrow::CsvConvertOptions$create()
   read_opts    <- arrow::CsvReadOptions$create(block_size = 256L * 1024L)
 
   ds <- arrow::open_dataset(
