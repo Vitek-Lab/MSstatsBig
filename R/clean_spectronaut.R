@@ -8,16 +8,16 @@ reduceBigSpectronaut <- function(input_file, output_path,
                                  calculateAnomalyScores=FALSE,
                                  anomalyModelFeatures=c()) {
   if (grepl("csv", input_file)) {
-    delim = ","
+    delim <- ","
   } else if (grepl("tsv|xls", input_file)) {
-    delim = "\t"
+    delim <- "\t"
   } else {
     delim <- ";"
   }
 
-  # Restrict parsing to the columns cleanSpectronautChunk actually consumes.
-  # Spectronaut exports often have 50+ columns; reading only this subset
-  # cuts per-chunk peak memory roughly proportionally to the column ratio.
+  # Columns cleanSpectronautChunk actually consumes; Arrow's
+  # convert_options$include_columns drops everything else at parse time so
+  # we never materialize the ~35 unused columns Spectronaut exports.
   needed_cols <- c("R.FileName", "R.Condition", "R.Replicate",
                    "PG.ProteinAccessions", "EG.ModifiedSequence",
                    "FG.LabeledSequence", "FG.Charge",
@@ -29,21 +29,45 @@ reduceBigSpectronaut <- function(input_file, output_path,
     needed_cols <- c(needed_cols, anomalyModelFeatures)
   }
 
-  spec_chunk <- function(x, pos) cleanSpectronautChunk(x,
-                                                       output_path,
-                                                       intensity,
-                                                       filter_by_excluded,
-                                                       filter_by_identified,
-                                                       filter_by_qvalue,
-                                                       qvalue_cutoff,
-                                                       pos,
-                                                       calculateAnomalyScores,
-                                                       anomalyModelFeatures)
-  readr::read_delim_chunked(input_file,
-                            readr::DataFrameCallback$new(spec_chunk),
-                            delim = delim,
-                            chunk_size = 1e5,
-                            col_names = needed_cols)
+  # Arrow's CSV reader replaces readr::read_delim_chunked.  Arrow releases
+  # per-batch state as soon as a batch is consumed, so peak memory is
+  # bounded by one record batch instead of growing with the dataset (readr
+  # keeps a string-interning pool that accumulates across chunks).  The
+  # `delim` switch above already covers comma / tab / semicolon variants;
+  # Arrow's CSV reader handles all three the same way through
+  # CsvParseOptions$delimiter.
+  parse_opts   <- arrow::CsvParseOptions$create(delimiter = delim)
+  convert_opts <- arrow::CsvConvertOptions$create(include_columns = needed_cols)
+  read_opts    <- arrow::CsvReadOptions$create(block_size = 256L * 1024L)
+
+  ds <- arrow::open_dataset(
+    input_file,
+    format          = "csv",
+    parse_options   = parse_opts,
+    convert_options = convert_opts,
+    read_options    = read_opts
+  )
+
+  reader <- arrow::Scanner$create(ds)$ToRecordBatchReader()
+
+  pos <- 1L
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    chunk_df <- as.data.frame(batch)
+    cleanSpectronautChunk(chunk_df,
+                          output_path,
+                          intensity,
+                          filter_by_excluded,
+                          filter_by_identified,
+                          filter_by_qvalue,
+                          qvalue_cutoff,
+                          pos,
+                          calculateAnomalyScores,
+                          anomalyModelFeatures)
+    pos <- pos + nrow(chunk_df)
+    rm(batch, chunk_df)
+  }
 }
 
 #' @keywords internal
