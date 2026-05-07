@@ -18,9 +18,11 @@
 #' Pipeline (no full-dataset collect at any point):
 #' \enumerate{
 #'   \item Lazy log2 transform applied to the Arrow plan.
-#'   \item Streaming Arrow scan → per-run median statistics (small aggregate).
-#'   \item Streaming Arrow scan → distinct features per protein (small aggregate).
-#'   \item Streaming Arrow scan → repartition by ProteinName into Parquet files.
+#'   \item One streaming source scan → repartition by Run into Parquet files.
+#'     All subsequent reads use this Parquet view.
+#'   \item Per-run exact median: one small Parquet partition read per run.
+#'   \item Parquet scan → distinct features per protein (small aggregate).
+#'   \item Parquet scan → repartition by ProteinName into Parquet files.
 #'   \item For each protein: read its (small) partition, scatter into matrix,
 #'     write that protein's slot of the matter_list.
 #' }
@@ -62,21 +64,68 @@
                                        NA_real_))
     }
 
-    # ── 2. Per-run median + run metadata (streaming aggregates) ───────────────
-    if (verbose) message("[convert_matter] computing per-run median ...")
+    # ── 1b. Materialize source as Run-partitioned Parquet (one streaming scan)
+    #
+    # All subsequent reads (per-run median loop, distinct features, ProteinName
+    # repartition) go through this Parquet view instead of re-scanning the
+    # source CSV.  One Run = one small file → predicate-pushdown filters
+    # become ~O(file size for that run), not O(full dataset).
+    if (verbose)
+        message("[convert_matter] partitioning source by Run (one streaming scan) ...")
 
-    run_medians <- arrow_data |>
-        dplyr::group_by(Run) |>
-        dplyr::summarise(
-            median_intensity = median(Intensity, na.rm = TRUE),
-            n_obs            = sum(!is.na(Intensity), na.rm = TRUE),
-            .groups          = "drop") |>
-        dplyr::collect()
+    run_partitioned <- file.path(output_dir, ".tmp_run_partitions")
+    if (dir.exists(run_partitioned))
+        unlink(run_partitioned, recursive = TRUE)
 
+    arrow::write_dataset(
+        arrow_data,
+        path         = run_partitioned,
+        format       = "parquet",
+        partitioning = "Run"
+    )
+
+    # Replace lazy CSV reference with a lazy Parquet reference for everything
+    # downstream.  Hive partitioning auto-recovers Run as a virtual column.
+    arrow_data <- arrow::open_dataset(run_partitioned)
+
+    # ── 2. Per-run exact median + run metadata ────────────────────────────────
+    #
+    # Arrow's groupby `median` translates to `hash_approximate_median`
+    # (t-digest), so we pull each run's Intensity values one at a time and
+    # compute an EXACT median in R.  Each filter+collect now reads only that
+    # run's Parquet partition file.
     run_meta <- arrow_data |>
         dplyr::distinct(Run, Condition, BioReplicate) |>
         dplyr::collect() |>
         dplyr::arrange(Run)
+
+    distinct_runs <- run_meta$Run
+    n_runs_total  <- length(distinct_runs)
+
+    if (verbose)
+        message(sprintf("[convert_matter] computing exact per-run median across %d runs ...",
+                        n_runs_total))
+
+    run_medians_list <- vector("list", n_runs_total)
+    for (i in seq_len(n_runs_total)) {
+        g    <- distinct_runs[i]
+        vals <- arrow_data |>
+            dplyr::filter(Run == g) |>
+            dplyr::select(Intensity) |>
+            dplyr::collect()
+
+        run_medians_list[[i]] <- data.table::data.table(
+            Run              = g,
+            median_intensity = median(vals$Intensity, na.rm = TRUE),
+            n_obs            = sum(!is.na(vals$Intensity)))
+
+        rm(vals)
+
+        if (verbose && i %% 10L == 0L)
+            message(sprintf("[convert_matter]   median computed for %d / %d runs",
+                            i, n_runs_total))
+    }
+    run_medians <- data.table::rbindlist(run_medians_list)
 
     run_meta$row_idx <- seq_len(nrow(run_meta))
     all_runs <- run_meta$Run
@@ -207,6 +256,7 @@
     }
 
     unlink(tmp_partitioned, recursive = TRUE)
+    unlink(run_partitioned, recursive = TRUE)
 
     # ── 7. Manifest ───────────────────────────────────────────────────────────
     manifest <- list(
