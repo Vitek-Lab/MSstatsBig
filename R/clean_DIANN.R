@@ -17,26 +17,55 @@ reduceBigDIANN <- function(input_file, output_path, MBR = TRUE,
                            global_qvalue_cutoff = 0.01,
                            qvalue_cutoff = 0.01,
                            pg_qvalue_cutoff = 0.01,
-                           calculateAnomalyScores=FALSE, 
+                           calculateAnomalyScores=FALSE,
                            anomalyModelFeatures=c(),
                            annotation = NULL) {
-  if (grepl("csv", input_file)) {
-    delim = ","
-  } else if (grepl("tsv|xls", input_file)) {
-    delim = "\t"
-  } else {
-    delim <- ";"
-  }
-  
-  diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR, 
+  # Per-chunk callback shared by both the parquet and delimited-text paths.
+  # `pos` drives .writeChunkToFile: pos == 1 overwrites, pos > 1 appends.
+  diann_chunk <- function(x, pos) cleanDIANNChunk(x, output_path, MBR,
                                                   quantificationColumn, pos,
-                                                  global_qvalue_cutoff, 
-                                                  qvalue_cutoff, 
-                                                  pg_qvalue_cutoff, 
+                                                  global_qvalue_cutoff,
+                                                  qvalue_cutoff,
+                                                  pg_qvalue_cutoff,
                                                   calculateAnomalyScores,
                                                   anomalyModelFeatures,
                                                   annotation)
 
+  # Parquet branch (DIANN 2.0+): stream record batches via arrow so the file
+  # is never fully materialised. read_delim_chunked can't read parquet bytes.
+  if (tolower(tools::file_ext(input_file)) == "parquet") {
+    # Lazy handle to the parquet file — no data loaded yet.
+    ds <- arrow::open_dataset(input_file, format = "parquet")
+    # Scanner + RecordBatchReader yields one batch at a time on demand.
+    # batch_size matches the delimited-text path's 1M-row chunks; row-group
+    # boundaries in the parquet may cap individual batches below this.
+    scanner <- arrow::Scanner$create(ds, batch_size = 1e6)
+    reader <- scanner$ToRecordBatchReader()
+    pos <- 1
+    repeat {
+      batch <- reader$read_next_batch()
+      if (is.null(batch)) break  # exhausted
+      # Materialise just this batch, run it through the shared cleaner.
+      diann_chunk(as.data.frame(batch), pos)
+      pos <- pos + 1
+    }
+    return(invisible(NULL))
+  }
+
+  # Delimited-text branch (DIANN 1.x TSV/CSV): sniff the delimiter from the
+  # first line, defaulting to tab when nothing matches.
+  first_line <- readLines(input_file, n = 1)
+  if (grepl("\t", first_line)) {
+    delim <- "\t"
+  } else if (grepl(",", first_line)) {
+    delim <- ","
+  } else if (grepl(";", first_line)) {
+    delim <- ";"
+  } else {
+    delim <- "\t"
+  }
+
+  # Stream the file in 1M-row chunks, invoking diann_chunk for each.
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(diann_chunk),
                             delim = delim,

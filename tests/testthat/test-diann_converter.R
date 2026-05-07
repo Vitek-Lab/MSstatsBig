@@ -153,7 +153,6 @@ test_that("bigDIANNtoMSstatsFormat works with arrow backend", {
     data.frame(Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, Fragment.Quant.Corrected = c(2000, 2100), Q.Value = 0.001, Precursor.Mz = 500, Fragment.Info = "y4", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001)
   )
   write.csv(diann_data, input_file, row.names = FALSE)
-
   converted <- bigDIANNtoMSstatsFormat(
     input_file = input_file,
     output_file_name = output_file,
@@ -168,8 +167,49 @@ test_that("bigDIANNtoMSstatsFormat works with arrow backend", {
   expect_true(all(c("y1", "y4") %in% unique(result$FragmentIon)))
   expect_false(any(c("y2", "y3") %in% unique(result$FragmentIon)))
 
-  # Cleanup
-  file.remove(input_file)
-  if (file.exists(output_file)) file.remove(output_file)
-  if (file.exists(paste0("reduce_output_", output_file))) file.remove(paste0("reduce_output_", output_file))
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(input_file, force = TRUE)
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
+})
+
+test_that("bigDIANNtoMSstatsFormat works with annotation", {
+  input_file <- tempfile(fileext = ".csv")
+  output_file <- basename(tempfile(fileext = ".csv"))
+
+  # Minimal DIANN data
+  diann_data <- data.frame(
+    Run = c("r1", "r2"), Protein.Names = "P1", Stripped.Sequence = "PEPTIDE", 
+    Modified.Sequence = "PEPTIDE", Precursor.Charge = 2, 
+    Fragment.Quant.Corrected = c(1000, 1100), Q.Value = 0.001, Precursor.Mz = 500, 
+    Fragment.Info = "y1", Lib.Q.Value = 0.001, Lib.PG.Q.Value = 0.001
+  )
+  write.csv(diann_data, input_file, row.names = FALSE)
+  
+  # Annotation data
+  annot <- data.frame(
+    Run = c("r1", "r2"),
+    Condition = c("Disease", "Healthy"),
+    BioReplicate = c(1, 2)
+  )
+  
+  converted <- bigDIANNtoMSstatsFormat(
+    input_file = input_file,
+    annotation = annot,
+    output_file_name = output_file,
+    backend = "arrow"
+  )
+  result <- dplyr::collect(converted)
+
+  expect_true(all(c("Condition", "BioReplicate") %in% colnames(result)))
+  expect_equal(result$Condition[result$Run == "r1"], "Disease")
+  expect_equal(result$Condition[result$Run == "r2"], "Healthy")
+
+  # Cleanup — outputs may be directories when backend = "arrow"
+  unlink(input_file, force = TRUE)
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
+  unlink(paste0("cleaned_", output_file), recursive = TRUE, force = TRUE)
 })
