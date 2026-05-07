@@ -43,7 +43,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
                             readr::DataFrameCallback$new(spec_chunk),
                             delim = delim,
                             chunk_size = 1e6,
-                            col_select = tidyselect::any_of(needed_cols))
+                            col_names = tidyselect::any_of(needed_cols))
 }
 
 #' @keywords internal
