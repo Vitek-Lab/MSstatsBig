@@ -50,7 +50,9 @@ reduceBigSpectronaut <- function(input_file, output_path,
 
   reader <- arrow::Scanner$create(ds)$ToRecordBatchReader()
 
-  pos <- 1L
+  t_start   <- Sys.time()
+  pos       <- 1L
+  batch_idx <- 0L
   repeat {
     batch <- reader$read_next_batch()
     if (is.null(batch)) break
@@ -65,8 +67,32 @@ reduceBigSpectronaut <- function(input_file, output_path,
                           pos,
                           calculateAnomalyScores,
                           anomalyModelFeatures)
-    pos <- pos + nrow(chunk_df)
+    pos       <- pos + nrow(chunk_df)
+    batch_idx <- batch_idx + 1L
+
+    if (batch_idx %% 1000L == 0L) {
+      elapsed <- as.numeric(Sys.time() - t_start, units = "secs")
+      rate    <- (pos - 1L) / elapsed
+      message(sprintf(
+        "[reduceBigSpectronaut] %d batches | %s rows | %.1fk rows/s | %.0fs elapsed",
+        batch_idx,
+        format(pos - 1L, big.mark = ","),
+        rate / 1000,
+        elapsed))
+    }
+
     rm(batch, chunk_df)
+  }
+
+  if (batch_idx %% 1000L != 0L) {
+    elapsed <- as.numeric(Sys.time() - t_start, units = "secs")
+    rate    <- (pos - 1L) / elapsed
+    message(sprintf(
+      "[reduceBigSpectronaut] done: %d batches | %s rows | %.1fk rows/s | %.0fs elapsed",
+      batch_idx,
+      format(pos - 1L, big.mark = ","),
+      rate / 1000,
+      elapsed))
   }
 }
 
