@@ -42,7 +42,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(spec_chunk),
                             delim = delim,
-                            chunk_size = 1e6,
+                            chunk_size = 1e5,
                             col_names = needed_cols)
 }
 
