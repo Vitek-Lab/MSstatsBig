@@ -5,7 +5,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
                                  filter_by_identified = FALSE,
                                  filter_by_qvalue = TRUE,
                                  qvalue_cutoff = 0.01,
-                                 calculateAnomalyScores=FALSE, 
+                                 calculateAnomalyScores=FALSE,
                                  anomalyModelFeatures=c()) {
   if (grepl("csv", input_file)) {
     delim = ","
@@ -14,6 +14,21 @@ reduceBigSpectronaut <- function(input_file, output_path,
   } else {
     delim <- ";"
   }
+
+  # Restrict parsing to the columns cleanSpectronautChunk actually consumes.
+  # Spectronaut exports often have 50+ columns; reading only this subset
+  # cuts per-chunk peak memory roughly proportionally to the column ratio.
+  needed_cols <- c("R.FileName", "R.Condition", "R.Replicate",
+                   "PG.ProteinAccessions", "EG.ModifiedSequence",
+                   "FG.LabeledSequence", "FG.Charge",
+                   "F.FrgIon", "F.Charge",
+                   "EG.Identified", "F.ExcludedFromQuantification",
+                   "F.FrgLossType", "PG.Qvalue", "EG.Qvalue",
+                   intensity)
+  if (calculateAnomalyScores) {
+    needed_cols <- c(needed_cols, anomalyModelFeatures)
+  }
+
   spec_chunk <- function(x, pos) cleanSpectronautChunk(x,
                                                        output_path,
                                                        intensity,
@@ -22,12 +37,13 @@ reduceBigSpectronaut <- function(input_file, output_path,
                                                        filter_by_qvalue,
                                                        qvalue_cutoff,
                                                        pos,
-                                                       calculateAnomalyScores, 
+                                                       calculateAnomalyScores,
                                                        anomalyModelFeatures)
   readr::read_delim_chunked(input_file,
                             readr::DataFrameCallback$new(spec_chunk),
                             delim = delim,
-                            chunk_size = 1e6)
+                            chunk_size = 1e6,
+                            col_select = tidyselect::any_of(needed_cols))
 }
 
 #' @keywords internal
