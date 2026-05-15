@@ -21,7 +21,8 @@ bigSpectronauttoMSstatsFormat(
   calculateAnomalyScores = FALSE,
   anomalyModelFeatures = c(),
   annotation = NULL,
-  connection = NULL
+  connection = NULL,
+  block_size = 16L * 1024L * 1024L
 )
 }
 \arguments{
@@ -74,6 +75,12 @@ structure rather than per-sample IDs.}
 
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}
+
+\item{block_size}{Arrow CSV reader block size in bytes; each input row must
+fit inside one block. Defaults to 16 MiB (`16L * 1024L * 1024L`). If you
+see `Invalid: straddling object straddles two block boundaries` on
+extra-wide Spectronaut exports, pass a larger value
+(e.g. `64L * 1024L * 1024L`).}
 }
 \value{
 either arrow object or sparklyr table that can be optionally collected

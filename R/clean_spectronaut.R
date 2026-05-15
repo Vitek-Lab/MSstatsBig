@@ -6,7 +6,11 @@ reduceBigSpectronaut <- function(input_file, output_path,
                                  filter_by_qvalue = TRUE,
                                  qvalue_cutoff = 0.01,
                                  calculateAnomalyScores=FALSE,
-                                 anomalyModelFeatures=c()) {
+                                 anomalyModelFeatures=c(),
+                                 block_size = 16L * 1024L * 1024L) {
+  block_size <- as.integer(block_size)
+  stopifnot(length(block_size) == 1L, !is.na(block_size), block_size > 0L)
+
   if (grepl("csv", input_file)) {
     delim <- ","
   } else if (grepl("tsv|xls", input_file)) {
@@ -38,7 +42,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
   # CsvParseOptions$delimiter.
   parse_opts   <- arrow::CsvParseOptions$create(delimiter = delim)
   convert_opts <- arrow::CsvConvertOptions$create()
-  read_opts    <- arrow::CsvReadOptions$create(block_size = 256L * 1024L)
+  read_opts    <- arrow::CsvReadOptions$create(block_size = block_size)
 
   ds <- arrow::open_dataset(
     input_file,

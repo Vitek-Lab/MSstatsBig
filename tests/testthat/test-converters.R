@@ -106,6 +106,80 @@ test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from a
     )
     readr::write_csv(msstats_data, output_path)
   })
+})
+
+test_that("reduceBigSpectronaut rejects invalid block_size values", {
+  input_file <- tempfile(fileext = ".csv")
+  writeLines("a,b\n1,2", input_file)
+  output_file <- tempfile()
+  on.exit({
+    unlink(input_file, force = TRUE)
+    unlink(output_file, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = -1L))
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = 0L))
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = NA_integer_))
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = c(1L, 2L)))
+  expect_error(suppressWarnings(
+    reduceBigSpectronaut(input_file, output_file, block_size = "16MB")
+  ))
+})
+
+test_that("bigSpectronauttoMSstatsFormat plumbs block_size through to reduceBigSpectronaut", {
+  captured <- new.env(parent = emptyenv())
+  captured$block_size <- NULL
+
+  spy_reduce <- function(input_file, output_path, intensity, filter_by_excluded,
+                        filter_by_identified, filter_by_qvalue, qvalue_cutoff,
+                        calculateAnomalyScores, anomalyModelFeatures,
+                        block_size = 16L * 1024L * 1024L) {
+    captured$block_size <- block_size
+    msstats_data <- data.frame(
+      ProteinName = "P1", PeptideSequence = "PEPTIDE", PrecursorCharge = 2,
+      FragmentIon = "frag1", ProductCharge = 1,
+      IsotopeLabelType = "L", Condition = "A", BioReplicate = 1,
+      Run = "run1", Intensity = 100
+    )
+    readr::write_csv(msstats_data, output_path)
+  }
+
+  input_file <- "dummy_spectro_input.csv"
+
+  # Default forwards 16 MiB.
+  stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", spy_reduce)
+  output_file_default <- tempfile(fileext = ".csv")
+  on.exit({
+    unlink(output_file_default, recursive = TRUE, force = TRUE)
+    unlink(paste0("reduce_output_", basename(output_file_default)),
+           recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  bigSpectronauttoMSstatsFormat(
+    input_file = input_file,
+    output_file_name = output_file_default,
+    backend = "arrow"
+  )
+  expect_identical(captured$block_size, 16L * 1024L * 1024L)
+
+  # Override forwards the user's value.
+  output_file_override <- tempfile(fileext = ".csv")
+  on.exit({
+    unlink(output_file_override, recursive = TRUE, force = TRUE)
+    unlink(paste0("reduce_output_", basename(output_file_override)),
+           recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  bigSpectronauttoMSstatsFormat(
+    input_file = input_file,
+    output_file_name = output_file_override,
+    backend = "arrow",
+    block_size = 8L * 1024L * 1024L
+  )
+  expect_identical(captured$block_size, 8L * 1024L * 1024L)
+})
+
+# test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
+#   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_input.tsv"
+#   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation.csv"
 
   input_file <- "dummy_spectro_input.csv"
   output_file <- "spectro_output_annot.csv"

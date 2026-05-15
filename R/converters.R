@@ -126,6 +126,11 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
 #' @param filter_by_qvalue if TRUE, will filter by EG.Qvalue and PG.Qvalue columns.
 #' @param qvalue_cutoff cutoff which will be used for q-value filtering.
+#' @param block_size Arrow CSV reader block size in bytes; each input row must
+#'   fit inside one block. Defaults to 16 MiB (`16L * 1024L * 1024L`). If you
+#'   see `Invalid: straddling object straddles two block boundaries` on
+#'   extra-wide Spectronaut exports, pass a larger value
+#'   (e.g. `64L * 1024L * 1024L`).
 #'
 #' @export
 #'
@@ -167,12 +172,14 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           calculateAnomalyScores=FALSE,
                                           anomalyModelFeatures=c(),
                                           annotation = NULL,
-                                          connection =  NULL) {
+                                          connection =  NULL,
+                                          block_size = 16L * 1024L * 1024L) {
   reduced_file <- .prefixedPath("reduce_output_", output_file_name)
   reduceBigSpectronaut(input_file, reduced_file,
                        intensity, filter_by_excluded, filter_by_identified,
                        filter_by_qvalue, qvalue_cutoff,
-                       calculateAnomalyScores, anomalyModelFeatures)
+                       calculateAnomalyScores, anomalyModelFeatures,
+                       block_size = block_size)
   msstats_data <- MSstatsPreprocessBig(
     input_file = reduced_file,
     output_file_name = output_file_name,
