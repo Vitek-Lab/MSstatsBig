@@ -14,8 +14,10 @@ Description: MSstats package provide tools for preprocessing, summarization and
     processing larger than memory data sets.
 License: Artistic-2.0
 Encoding: UTF-8
-Imports: 
+RoxygenNote: 7.3.3
+Imports:
     arrow,
+    data.table,
     DBI,
     dplyr,
     MSstats,
