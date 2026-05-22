@@ -131,6 +131,16 @@ cleanSpectronautChunk = function(input, output_path,
   }
 
   present_orig <- intersect(all_cols, colnames(input))
+  if (length(present_orig) == 0L) {
+    stop(sprintf(
+      paste0("cleanSpectronautChunk: none of the expected Spectronaut ",
+             "columns were found in the input batch. ",
+             "Expected any of: %s. Found: %s. ",
+             "Check that the file is comma-delimited and that the ",
+             "Spectronaut export uses the standard column names."),
+      paste(all_cols, collapse = ", "),
+      paste(colnames(input), collapse = ", ")))
+  }
   input <- input[, present_orig, with = FALSE]
 
   # Two-step rename matching the MSstatsConvert family pattern: standardize
