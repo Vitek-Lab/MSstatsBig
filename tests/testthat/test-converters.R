@@ -95,10 +95,6 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
 })
 
 test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from annotation", {
-  # Mock reduce to emit rows tagged with values we can distinguish
-  # from the supplied annotation — if the override works,
-  # downstream Condition/BioReplicate must come from `annotation`,
-  # not from these mocked values.
   stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", function(input_file, output_path, ...) {
     msstats_data <- data.frame(
       ProteinName = "P1", PeptideSequence = "PEPTIDE", PrecursorCharge = 2,
@@ -140,74 +136,3 @@ test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from a
   unlink(output_file, recursive = TRUE, force = TRUE)
   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
-
-# test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
-#   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_input.tsv"
-#   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation.csv"
-
-#   # Skip test if the local files are not found (e.g. on CI/CD)
-#   skip_if_not(file.exists(input_file), "Local DIANN input file not found")
-#   skip_if_not(file.exists(annotation_file), "Local annotation file not found")
-
-#   annot <- read.csv(annotation_file)
-#   output_file <- "real_diann_output.csv"
-
-#   processed <- bigDIANNtoMSstatsFormat(
-#     input_file = input_file,
-#     annotation = annot,
-#     output_file_name = output_file,
-#     backend = "arrow",
-#     MBR = FALSE,
-#     quantificationColumn = "FragmentQuantCorrected",
-#     max_feature_count = 100,
-#     filter_unique_peptides = FALSE,
-#     aggregate_psms = FALSE,
-#     filter_few_obs = FALSE
-#   )
-
-#   result <- dplyr::collect(processed)
-
-#   expect_true(!is.null(result))
-#   expect_true(nrow(result) > 0)
-
-#   # Cleanup — outputs may be directories when backend = "arrow"
-#   unlink(output_file, recursive = TRUE, force = TRUE)
-#   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
-#   unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
-# })
-
-# test_that("bigDIANNtoMSstatsFormat works with DIANN 2.0 parquet input", {
-#   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_2.0.parquet"
-#   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation_diann_2.0.csv"
-
-#   skip_if_not(file.exists(input_file), "Local DIANN 2.0 parquet file not found")
-#   skip_if_not(file.exists(annotation_file), "Local DIANN 2.0 annotation file not found")
-#   skip_if_not_installed("arrow")
-
-#   annot <- read.csv(annotation_file)
-#   output_file <- "diann_2_0_output.csv"
-
-#   processed <- bigDIANNtoMSstatsFormat(
-#     input_file = input_file,
-#     annotation = annot,
-#     output_file_name = output_file,
-#     backend = "arrow",
-#     MBR = FALSE,
-#     quantificationColumn = "auto",
-#     max_feature_count = 100,
-#     filter_unique_peptides = FALSE,
-#     aggregate_psms = FALSE,
-#     filter_few_obs = FALSE
-#   )
-
-#   result <- dplyr::collect(processed)
-
-#   expect_true(!is.null(result))
-#   expect_true(nrow(result) > 0)
-
-#   # Cleanup — outputs may be directories when backend = "arrow"
-#   unlink(output_file, recursive = TRUE, force = TRUE)
-#   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
-#   unlink(paste0("topN_", output_file), recursive = TRUE, force = TRUE)
-#   unlink(paste0("cleaned_", output_file), recursive = TRUE, force = TRUE)
-# })
