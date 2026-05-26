@@ -94,6 +94,53 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
 
+test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from annotation", {
+  # Mock reduce to emit rows tagged with values we can distinguish
+  # from the supplied annotation — if the override works,
+  # downstream Condition/BioReplicate must come from `annotation`,
+  # not from these mocked values.
+  stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", function(input_file, output_path, ...) {
+    msstats_data <- data.frame(
+      ProteinName = "P1", PeptideSequence = "PEPTIDE", PrecursorCharge = 2,
+      FragmentIon = "frag1", ProductCharge = 1,
+      IsotopeLabelType = "L",
+      Condition = "FROM_SPECTRONAUT", BioReplicate = 999,
+      Run = rep(c("run1", "run2"), each = 1),
+      Intensity = c(1000, 2000)
+    )
+    readr::write_csv(msstats_data, output_path)
+  })
+
+  input_file <- "dummy_spectro_input.csv"
+  output_file <- "spectro_output_annot.csv"
+
+  annotation <- data.frame(
+    Run = c("run1", "run2"),
+    BioReplicate = c(7L, 8L),
+    Condition = c("ctrl", "treat"),
+    stringsAsFactors = FALSE
+  )
+
+  processed <- bigSpectronauttoMSstatsFormat(
+    input_file = input_file,
+    annotation = annotation,
+    output_file_name = output_file,
+    backend = "arrow",
+    max_feature_count = 1
+  )
+  result <- dplyr::collect(processed)
+  result <- result[order(result$Run), ]
+
+  expect_equal(result$Condition, c("ctrl", "treat"))
+  expect_equal(result$BioReplicate, c(7L, 8L))
+  expect_false(any(result$Condition == "FROM_SPECTRONAUT"))
+  expect_false(any(result$BioReplicate == 999))
+
+  # Cleanup
+  unlink(output_file, recursive = TRUE, force = TRUE)
+  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+})
+
 # test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
 #   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_input.tsv"
 #   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation.csv"

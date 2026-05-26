@@ -6,6 +6,7 @@
 \usage{
 bigSpectronauttoMSstatsFormat(
   input_file,
+  annotation = NULL,
   output_file_name,
   backend,
   intensity = "F.NormalizedPeakArea",
@@ -25,6 +26,16 @@ bigSpectronauttoMSstatsFormat(
 }
 \arguments{
 \item{input_file}{name of the input text file in 10-column MSstats format.}
+
+\item{annotation}{Optional data.frame with columns `Run`,
+`BioReplicate`, `Condition` (plus any additional annotation
+columns). If supplied, the converter merges it onto the output
+on `Run` and overrides any `Condition` / `BioReplicate` values
+that came from Spectronaut's `R.Condition` / `R.Replicate`
+columns. Required when the experimental design cannot be
+expressed in Spectronaut's own annotation — most notably paired
+designs, where `BioReplicate` must encode the pairing
+structure rather than per-sample IDs.}
 
 \item{output_file_name}{name of an output file which will be saved after pre-processing}
 
@@ -73,10 +84,24 @@ Convert out-of-memory Spectronaut files to MSstats format.
 }
 \examples{
 converted_data <- bigSpectronauttoMSstatsFormat(
-  system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
-  "output_file.csv",
-  backend="arrow")
+  input_file = system.file("extdata", "spectronaut_input.csv",
+                           package = "MSstatsBig"),
+  output_file_name = "output_file.csv",
+  backend = "arrow")
 converted_data <- dplyr::collect(converted_data)
 head(converted_data)
+
+# Override Spectronaut's embedded Condition / BioReplicate with
+# a custom annotation (e.g. for a paired design):
+annot <- data.frame(Run = unique(converted_data[["Run"]]))
+annot$BioReplicate <- seq_len(nrow(annot))
+annot$Condition <- rep(c("ctrl", "treat"), length.out = nrow(annot))
+overridden <- bigSpectronauttoMSstatsFormat(
+  input_file = system.file("extdata", "spectronaut_input.csv",
+                           package = "MSstatsBig"),
+  annotation = annot,
+  output_file_name = "output_file.csv",
+  backend = "arrow")
+head(dplyr::collect(overridden))
 
 }
