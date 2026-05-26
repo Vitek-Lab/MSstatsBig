@@ -131,9 +131,8 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #'
 #' @examples
 #' converted_data <- bigSpectronauttoMSstatsFormat(
-#'   input_file = system.file("extdata", "spectronaut_input.csv",
-#'                            package = "MSstatsBig"),
-#'   output_file_name = "output_file.csv",
+#'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
 #'   backend = "arrow")
 #' converted_data <- dplyr::collect(converted_data)
 #' head(converted_data)
@@ -144,19 +143,16 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' annot$BioReplicate <- seq_len(nrow(annot))
 #' annot$Condition <- rep(c("ctrl", "treat"), length.out = nrow(annot))
 #' overridden <- bigSpectronauttoMSstatsFormat(
-#'   input_file = system.file("extdata", "spectronaut_input.csv",
-#'                            package = "MSstatsBig"),
-#'   annotation = annot,
-#'   output_file_name = "output_file.csv",
-#'   backend = "arrow")
+#'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
+#'   backend = "arrow",
+#'   annotation = annot)
 #' head(dplyr::collect(overridden))
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
 #'
-bigSpectronauttoMSstatsFormat <-  function(input_file,
-                                          annotation = NULL,
-                                          output_file_name,
+bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           backend,
                                           intensity = "F.NormalizedPeakArea",
                                           filter_by_excluded = FALSE,
@@ -170,6 +166,7 @@ bigSpectronauttoMSstatsFormat <-  function(input_file,
                                           remove_annotation =  FALSE,
                                           calculateAnomalyScores=FALSE,
                                           anomalyModelFeatures=c(),
+                                          annotation = NULL,
                                           connection =  NULL) {
   reduced_file <- .prefixedPath("reduce_output_", output_file_name)
   reduceBigSpectronaut(input_file, reduced_file,
