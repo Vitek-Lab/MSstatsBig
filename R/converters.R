@@ -112,6 +112,15 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' Convert out-of-memory Spectronaut files to MSstats format.
 #'
 #' @inheritParams MSstatsPreprocessBig
+#' @param annotation Optional data.frame with columns `Run`,
+#'   `BioReplicate`, `Condition` (plus any additional annotation
+#'   columns). If supplied, the converter merges it onto the output
+#'   on `Run` and overrides any `Condition` / `BioReplicate` values
+#'   that came from Spectronaut's `R.Condition` / `R.Replicate`
+#'   columns. Required when the experimental design cannot be
+#'   expressed in Spectronaut's own annotation — most notably paired
+#'   designs, where `BioReplicate` must encode the pairing
+#'   structure rather than per-sample IDs.
 #' @param intensity Name of the intensity column to be used in Spectronaut
 #' @param filter_by_excluded if TRUE, will filter by the `F.ExcludedFromQuantification` column.
 #' @param filter_by_identified if TRUE, will filter by the `EG.Identified` column.
@@ -124,9 +133,21 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #' converted_data <- bigSpectronauttoMSstatsFormat(
 #'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
 #'   "output_file.csv",
-#'   backend="arrow")
+#'   backend = "arrow")
 #' converted_data <- dplyr::collect(converted_data)
 #' head(converted_data)
+#'
+#' # Override Spectronaut's embedded Condition / BioReplicate with
+#' # a custom annotation (e.g. for a paired design):
+#' annot <- data.frame(Run = unique(converted_data[["Run"]]))
+#' annot$BioReplicate <- seq_len(nrow(annot))
+#' annot$Condition <- rep(c("ctrl", "treat"), length.out = nrow(annot))
+#' overridden <- bigSpectronauttoMSstatsFormat(
+#'   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+#'   "output_file.csv",
+#'   backend = "arrow",
+#'   annotation = annot)
+#' head(dplyr::collect(overridden))
 #'
 #' @return either arrow object or sparklyr table that can be optionally collected
 #' into memory by using dplyr::collect function.
@@ -143,8 +164,9 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                                           aggregate_psms =  FALSE,
                                           filter_few_obs =  FALSE,
                                           remove_annotation =  FALSE,
-                                          calculateAnomalyScores=FALSE, 
+                                          calculateAnomalyScores=FALSE,
                                           anomalyModelFeatures=c(),
+                                          annotation = NULL,
                                           connection =  NULL) {
   reduced_file <- .prefixedPath("reduce_output_", output_file_name)
   reduceBigSpectronaut(input_file, reduced_file,
@@ -153,19 +175,27 @@ bigSpectronauttoMSstatsFormat <-  function(input_file, output_file_name,
                        calculateAnomalyScores, anomalyModelFeatures)
   msstats_data <- MSstatsPreprocessBig(
     input_file = reduced_file,
-    output_file_name = output_file_name, 
-    backend = backend, 
+    output_file_name = output_file_name,
+    backend = backend,
     max_feature_count = max_feature_count,
     filter_unique_peptides = filter_unique_peptides,
-    aggregate_psms = aggregate_psms, 
-    filter_few_obs = filter_few_obs, 
-    remove_annotation = remove_annotation, 
-    calculateAnomalyScores = calculateAnomalyScores, 
-    anomalyModelFeatures = anomalyModelFeatures, 
+    aggregate_psms = aggregate_psms,
+    filter_few_obs = filter_few_obs,
+    remove_annotation = remove_annotation,
+    calculateAnomalyScores = calculateAnomalyScores,
+    anomalyModelFeatures = anomalyModelFeatures,
     connection = connection)
-  
+
+  if (!is.null(annotation)) {
+    msstats_data <- MSstatsAddAnnotationBig(msstats_data, annotation)
+    if (backend == "arrow") {
+      unlink(output_file_name, recursive = TRUE, force = TRUE)
+      arrow::write_dataset(msstats_data, output_file_name, format = "csv")
+    }
+  }
+
   return(msstats_data)
-  
+
 }
 
 

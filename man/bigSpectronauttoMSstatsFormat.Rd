@@ -20,6 +20,7 @@ bigSpectronauttoMSstatsFormat(
   remove_annotation = FALSE,
   calculateAnomalyScores = FALSE,
   anomalyModelFeatures = c(),
+  annotation = NULL,
   connection = NULL
 )
 }
@@ -61,6 +62,16 @@ using dataProcess function. Only applicable to sparklyr backend.}
 
 \item{anomalyModelFeatures}{Character vector of column names to be carried through the pipeline}
 
+\item{annotation}{Optional data.frame with columns `Run`,
+`BioReplicate`, `Condition` (plus any additional annotation
+columns). If supplied, the converter merges it onto the output
+on `Run` and overrides any `Condition` / `BioReplicate` values
+that came from Spectronaut's `R.Condition` / `R.Replicate`
+columns. Required when the experimental design cannot be
+expressed in Spectronaut's own annotation — most notably paired
+designs, where `BioReplicate` must encode the pairing
+structure rather than per-sample IDs.}
+
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}
 }
@@ -75,8 +86,20 @@ Convert out-of-memory Spectronaut files to MSstats format.
 converted_data <- bigSpectronauttoMSstatsFormat(
   system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
   "output_file.csv",
-  backend="arrow")
+  backend = "arrow")
 converted_data <- dplyr::collect(converted_data)
 head(converted_data)
+
+# Override Spectronaut's embedded Condition / BioReplicate with
+# a custom annotation (e.g. for a paired design):
+annot <- data.frame(Run = unique(converted_data[["Run"]]))
+annot$BioReplicate <- seq_len(nrow(annot))
+annot$Condition <- rep(c("ctrl", "treat"), length.out = nrow(annot))
+overridden <- bigSpectronauttoMSstatsFormat(
+  system.file("extdata", "spectronaut_input.csv", package = "MSstatsBig"),
+  "output_file.csv",
+  backend = "arrow",
+  annotation = annot)
+head(dplyr::collect(overridden))
 
 }
