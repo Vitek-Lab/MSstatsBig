@@ -107,6 +107,9 @@ cleanDIANNChunk = function(input, output_path, MBR, quantificationColumn, pos,
         calculateAnomalyScores = calculateAnomalyScores,
         anomalyModelFeatures = anomalyModelFeatures
     )
+    if (!is.element("IsotopeLabelType", colnames(input))) {
+        input <- dplyr::mutate(input, IsotopeLabelType = "L")
+    }
     #input = MSstatsMakeAnnotation(input, annotation)
     .writeChunkToFile(input, output_path, pos)
     NULL
