@@ -22,9 +22,15 @@ reduceBigSpectronaut <- function(input_file, output_path,
     delim <- ";"
   }
 
-  # Columns cleanSpectronautChunk actually consumes; Arrow's
-  # convert_options$include_columns drops everything else at parse time so
-  # we never materialize the ~35 unused columns Spectronaut exports.
+  # Columns cleanSpectronautChunk actually consumes; only these are
+  # projected out of the dataset so we never materialize the ~35 unused
+  # columns Spectronaut exports. Note: CsvConvertOptions$include_columns
+  # only applies to the one-shot read_csv_arrow() reader -- it is silently
+  # ignored by the Datasets API (open_dataset() + Scanner) used below, so
+  # column pruning has to happen via Scanner$create(projection = ...)
+  # instead. present_cols intersects with the file's actual schema so
+  # older/variant Spectronaut exports missing an optional column don't
+  # make the scan fail on an unknown column name.
   needed_cols <- c("R.FileName", "R.Condition", "R.Replicate",
                    "PG.ProteinAccessions", "EG.ModifiedSequence",
                    "FG.LabeledSequence", "FG.Charge",
@@ -55,7 +61,8 @@ reduceBigSpectronaut <- function(input_file, output_path,
     read_options    = read_opts
   )
 
-  reader <- arrow::Scanner$create(ds)$ToRecordBatchReader()
+  present_cols <- intersect(needed_cols, ds$schema$names)
+  reader <- arrow::Scanner$create(ds, projection = present_cols)$ToRecordBatchReader()
 
   t_start   <- Sys.time()
   pos       <- 1L
