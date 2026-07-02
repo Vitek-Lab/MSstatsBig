@@ -55,7 +55,16 @@ reduceBigSpectronaut <- function(input_file, output_path,
     read_options    = read_opts
   )
 
-  reader <- arrow::Scanner$create(ds)$ToRecordBatchReader()
+  # Project to only the columns cleanSpectronautChunk consumes. Scanner
+  # projection (not CsvConvertOptions$include_columns, which collides with the
+  # open_dataset schema layer) is the mechanism that works with the dataset
+  # API. intersect() keeps only columns actually present so a partial export
+  # still runs instead of erroring, matching cleanSpectronautChunk's handling.
+  present_cols <- intersect(needed_cols, names(ds))
+  # Scanner applies the projection; ToRecordBatchReader() then yields one
+  # projected batch at a time on demand, keeping peak memory to a single batch.
+  scanner <- arrow::Scanner$create(ds, projection = present_cols)
+  reader <- scanner$ToRecordBatchReader()
 
   t_start   <- Sys.time()
   pos       <- 1L
@@ -162,18 +171,38 @@ cleanSpectronautChunk = function(input, output_path,
     input[, Identified := Identified == "True"]
   }
 
+  # Fail fast if a filter's source column is absent, rather than letting
+  # data.table raise a cryptic "object not found" mid-run. The message reports
+  # the original Spectronaut column name (what the user controls in the export).
+  msstats_to_spectronaut <- stats::setNames(all_cols, new_names)
+  require_filter_cols <- function(cols, filter_name) {
+    missing <- setdiff(cols, colnames(input))
+    if (length(missing) > 0L) {
+      stop(sprintf(
+        paste0("cleanSpectronautChunk: %s needs Spectronaut column(s) %s, ",
+               "which were not found in the input export. Found: %s."),
+        filter_name,
+        paste(msstats_to_spectronaut[missing], collapse = ", "),
+        paste(colnames(input), collapse = ", ")))
+    }
+  }
+
   if (filter_by_excluded) {
+    require_filter_cols("Excluded", "filter_by_excluded")
     input[Excluded == TRUE, Intensity := NA_real_]
   }
   if (filter_by_identified) {
+    require_filter_cols("Identified", "filter_by_identified")
     input[Identified == FALSE, Intensity := NA_real_]
   }
   if (filter_by_qvalue) {
+    require_filter_cols(c("EGQvalue", "PGQvalue"), "filter_by_qvalue")
     # Preserve dplyr::if_else semantics: rows with NA q-values become NA.
     input[is.na(EGQvalue) | EGQvalue >= qvalue_cutoff, Intensity := NA_real_]
     input[is.na(PGQvalue) | PGQvalue >= qvalue_cutoff, Intensity := NA_real_]
   }
 
+  require_filter_cols("FFrgLossType", "the noloss fragment-loss filter")
   input <- input[FFrgLossType == "noloss"]
 
   if ("LabeledSequence" %in% colnames(input)) {

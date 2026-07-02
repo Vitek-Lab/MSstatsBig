@@ -76,11 +76,22 @@ structure rather than per-sample IDs.}
 \item{connection}{Connection to a spark instance created with the
 `spark_connect` function from `sparklyr` package.}
 
-\item{block_size}{Arrow CSV reader block size in bytes; each input row must
-fit inside one block. Defaults to 16 MiB (`16L * 1024L * 1024L`). If you
-see `Invalid: straddling object straddles two block boundaries` on
-extra-wide Spectronaut exports, pass a larger value
-(e.g. `64L * 1024L * 1024L`).}
+\item{block_size}{Arrow CSV reader block size in bytes: the amount of raw
+CSV that is read and parsed at a time (roughly one record batch per block).
+Defaults to 16 MiB (`16L * 1024L * 1024L`). Two things matter when tuning it:
+\itemize{
+  \item It must be larger than your single widest row. If you see
+    `Invalid: straddling object straddles two block boundaries` on
+    extra-wide exports, raise it (e.g. `64L * 1024L * 1024L`).
+  \item Larger blocks reduce parsing overhead, but peak memory grows
+    roughly linearly with `block_size`, so it is also the main lever on
+    out-of-memory risk. Gains taper off quickly because per-batch time is
+    dominated by row cleaning, not by block size.
+}
+To speed up processing without risking a crash, double the value
+(32 -> 64 -> 128 MiB) while watching memory use, and stop once throughput
+stops improving. Keep it comfortably below free RAM -- and below free RAM
+divided by the number of jobs if you run several conversions in parallel.}
 }
 \value{
 either arrow object or sparklyr table that can be optionally collected
@@ -88,6 +99,34 @@ into memory by using dplyr::collect function.
 }
 \description{
 Convert out-of-memory Spectronaut files to MSstats format.
+}
+\details{
+`bigSpectronauttoMSstatsFormat` consumes the following Spectronaut export
+columns.
+
+Always required:
+\itemize{
+  \item `R.FileName`, `R.Condition`, `R.Replicate` -> Run, Condition, BioReplicate
+  \item `PG.ProteinAccessions` -> ProteinName
+  \item `EG.ModifiedSequence` -> PeptideSequence
+  \item `FG.Charge` -> PrecursorCharge; `F.FrgIon` -> FragmentIon; `F.Charge` -> ProductCharge
+  \item the intensity column (`F.NormalizedPeakArea` by default; see `intensity`) -> Intensity
+  \item `F.FrgLossType` -> used by the always-on `noloss` fragment filter
+}
+
+Optional:
+\itemize{
+  \item `FG.LabeledSequence` -> if present, sets IsotopeLabelType ("H" for
+    Lys8/Arg10 labels, otherwise "L"); if absent, IsotopeLabelType defaults to "L".
+}
+
+Required only when the matching filter is enabled:
+\itemize{
+  \item `EG.Identified` -> `filter_by_identified`
+  \item `F.ExcludedFromQuantification` -> `filter_by_excluded`
+  \item `EG.Qvalue` and `PG.Qvalue` -> `filter_by_qvalue`
+}
+A missing required column raises an informative error naming the column.
 }
 \examples{
 converted_data <- bigSpectronauttoMSstatsFormat(

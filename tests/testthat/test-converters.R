@@ -227,6 +227,67 @@ test_that("cleanSpectronautChunk drops rows where FFrgLossType != noloss", {
 >>>>>>> fdd7476 (add more tests)
 })
 
+test_that("cleanSpectronautChunk fails fast with a clear error when a filter column is absent", {
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  # FFrgLossType filter always runs: dropping the source column must error,
+  # naming the original Spectronaut column, not raise a cryptic data.table error.
+  input <- make_spectronaut_input(n = 1L)
+  input$F.FrgLossType <- NULL
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                       filter_by_qvalue = FALSE),
+    regexp = "F.FrgLossType")
+
+  # q-value filter only errors when it is actually requested.
+  input_noq <- make_spectronaut_input(n = 1L)
+  input_noq$EG.Qvalue <- NULL
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(input_noq, output_file, pos = 1L,
+                                       filter_by_qvalue = TRUE),
+    regexp = "EG.Qvalue")
+
+  # ...and is tolerated when the q-value filter is switched off.
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(make_spectronaut_input(n = 1L),
+                                       output_file, pos = 1L,
+                                       filter_by_qvalue = FALSE),
+    NA)
+})
+
+test_that("reduceBigSpectronaut projects out columns cleanSpectronautChunk does not use", {
+  # Real Spectronaut columns plus two junk columns that are not in needed_cols.
+  input <- make_spectronaut_input(n = 2L)
+  input$JunkA <- "zzz"
+  input$JunkB <- 999L
+  input_file <- tempfile(fileext = ".csv")
+  output_file <- tempfile()
+  on.exit({
+    unlink(input_file, force = TRUE)
+    unlink(output_file, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  readr::write_csv(input, input_file)
+
+  # Capture the columns of each batch actually handed to the cleaner. The
+  # Scanner projection should have dropped JunkA/JunkB before this point.
+  captured <- new.env(parent = emptyenv())
+  captured$cols <- NULL
+  stub(reduceBigSpectronaut, "cleanSpectronautChunk",
+       function(input, ...) {
+         captured$cols <- colnames(input)
+         NULL
+       })
+
+  reduceBigSpectronaut(input_file, output_file)
+
+  expect_false("JunkA" %in% captured$cols)
+  expect_false("JunkB" %in% captured$cols)
+  # Needed columns still make it through.
+  expect_true("F.NormalizedPeakArea" %in% captured$cols)
+  expect_true("PG.ProteinAccessions" %in% captured$cols)
+})
+
 test_that("reduceBigSpectronaut rejects invalid block_size values", {
   input_file <- tempfile(fileext = ".csv")
   writeLines("a,b\n1,2", input_file)
@@ -236,13 +297,17 @@ test_that("reduceBigSpectronaut rejects invalid block_size values", {
     unlink(output_file, recursive = TRUE, force = TRUE)
   }, add = TRUE)
 
-  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = -1L))
-  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = 0L))
-  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = NA_integer_))
-  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = c(1L, 2L)))
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = -1L),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = 0L),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = NA_integer_),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = c(1L, 2L)),
+               regexp = "block_size")
   expect_error(suppressWarnings(
     reduceBigSpectronaut(input_file, output_file, block_size = "16MB")
-  ))
+  ), regexp = "block_size")
 })
 
 test_that("bigSpectronauttoMSstatsFormat plumbs block_size through to reduceBigSpectronaut", {
