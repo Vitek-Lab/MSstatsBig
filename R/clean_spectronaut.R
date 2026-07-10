@@ -1,3 +1,7 @@
+#' @importFrom data.table := .SD setDT setnames
+#' @importFrom stats setNames
+NULL
+
 #' @keywords internal
 reduceBigSpectronaut <- function(input_file, output_path,
                                  intensity="F.NormalizedPeakArea",
@@ -5,29 +9,91 @@ reduceBigSpectronaut <- function(input_file, output_path,
                                  filter_by_identified = FALSE,
                                  filter_by_qvalue = TRUE,
                                  qvalue_cutoff = 0.01,
-                                 calculateAnomalyScores=FALSE, 
-                                 anomalyModelFeatures=c()) {
+                                 calculateAnomalyScores=FALSE,
+                                 anomalyModelFeatures=c(),
+                                 block_size = 16L * 1024L * 1024L) {
+  block_size <- as.integer(block_size)
+  stopifnot(length(block_size) == 1L, !is.na(block_size), block_size > 0L)
+
   if (grepl("csv", input_file)) {
-    delim = ","
+    delim <- ","
   } else if (grepl("tsv|xls", input_file)) {
-    delim = "\t"
+    delim <- "\t"
   } else {
     delim <- ";"
   }
-  spec_chunk <- function(x, pos) cleanSpectronautChunk(x,
-                                                       output_path,
-                                                       intensity,
-                                                       filter_by_excluded,
-                                                       filter_by_identified,
-                                                       filter_by_qvalue,
-                                                       qvalue_cutoff,
-                                                       pos,
-                                                       calculateAnomalyScores, 
-                                                       anomalyModelFeatures)
-  readr::read_delim_chunked(input_file,
-                            readr::DataFrameCallback$new(spec_chunk),
-                            delim = delim,
-                            chunk_size = 1e6)
+
+  needed_cols <- c("R.FileName", "R.Condition", "R.Replicate",
+                   "PG.ProteinAccessions", "EG.ModifiedSequence",
+                   "FG.LabeledSequence", "FG.Charge",
+                   "F.FrgIon", "F.Charge",
+                   "EG.Identified", "F.ExcludedFromQuantification",
+                   "F.FrgLossType", "PG.Qvalue", "EG.Qvalue",
+                   intensity)
+  if (calculateAnomalyScores) {
+    needed_cols <- c(needed_cols, anomalyModelFeatures)
+  }
+
+  parse_opts   <- arrow::CsvParseOptions$create(delimiter = delim)
+  convert_opts <- arrow::CsvConvertOptions$create()
+  read_opts    <- arrow::CsvReadOptions$create(block_size = block_size)
+
+  ds <- arrow::open_dataset(
+    input_file,
+    format          = "csv",
+    parse_options   = parse_opts,
+    convert_options = convert_opts,
+    read_options    = read_opts
+  )
+
+  present_cols <- intersect(needed_cols, names(ds))
+  scanner <- arrow::Scanner$create(ds, projection = present_cols)
+  reader <- scanner$ToRecordBatchReader()
+
+  t_start   <- Sys.time()
+  pos       <- 1L
+  batch_idx <- 0L
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    chunk_df <- as.data.frame(batch)
+    cleanSpectronautChunk(chunk_df,
+                          output_path,
+                          intensity,
+                          filter_by_excluded,
+                          filter_by_identified,
+                          filter_by_qvalue,
+                          qvalue_cutoff,
+                          pos,
+                          calculateAnomalyScores,
+                          anomalyModelFeatures)
+    pos       <- pos + nrow(chunk_df)
+    batch_idx <- batch_idx + 1L
+
+    if (batch_idx %% 1000L == 0L) {
+      elapsed <- as.numeric(Sys.time() - t_start, units = "secs")
+      rate    <- (pos - 1L) / elapsed
+      message(sprintf(
+        "[reduceBigSpectronaut] %d batches | %s rows | %.1fk rows/s | %.0fs elapsed",
+        batch_idx,
+        format(pos - 1L, big.mark = ","),
+        rate / 1000,
+        elapsed))
+    }
+
+    rm(batch, chunk_df)
+  }
+
+  if (batch_idx %% 1000L != 0L) {
+    elapsed <- as.numeric(Sys.time() - t_start, units = "secs")
+    rate    <- (pos - 1L) / elapsed
+    message(sprintf(
+      "[reduceBigSpectronaut] done: %d batches | %s rows | %.1fk rows/s | %.0fs elapsed",
+      batch_idx,
+      format(pos - 1L, big.mark = ","),
+      rate / 1000,
+      elapsed))
+  }
 }
 
 #' @keywords internal
@@ -38,85 +104,95 @@ cleanSpectronautChunk = function(input, output_path,
                                  filter_by_qvalue = TRUE,
                                  qvalue_cutoff = 0.01,
                                  pos = NULL,
-                                 calculateAnomalyScores=FALSE, 
+                                 calculateAnomalyScores=FALSE,
                                  anomalyModelFeatures=c()) {
+  data.table::setDT(input)
+
   all_cols <- c("R.FileName", "R.Condition", "R.Replicate",
                 "PG.ProteinAccessions", "EG.ModifiedSequence", "FG.LabeledSequence",
                 "FG.Charge", "F.FrgIon", "F.Charge",
                 "EG.Identified", "F.ExcludedFromQuantification", "F.FrgLossType",
                 "PG.Qvalue", "EG.Qvalue", intensity)
-  
-  if (calculateAnomalyScores){
-    all_cols <- c(all_cols, anomalyModelFeatures)
-  }
-  
-  cols <- intersect(all_cols, colnames(input))
-  input <- dplyr::select(input, all_of(cols))
-  input <- dplyr::rename_with(input, .fn = MSstatsConvert:::.standardizeColnames)
-  
   new_names <- c("Run", "Condition", "BioReplicate", "ProteinName",
                  "PeptideSequence", "LabeledSequence", "PrecursorCharge", "FragmentIon",
                  "ProductCharge", "Identified", "Excluded",
                  "FFrgLossType", "PGQvalue", "EGQvalue",
                  "Intensity")
-  if (calculateAnomalyScores){
+  if (calculateAnomalyScores) {
+    all_cols  <- c(all_cols, anomalyModelFeatures)
     new_names <- c(new_names, MSstatsConvert:::.standardizeColnames(anomalyModelFeatures))
   }
-  
-  # non_standardized =
-  old_names <- MSstatsConvert:::.standardizeColnames(all_cols)
-  names(old_names) <- new_names
-  old_names <- old_names[old_names %in% colnames(input)]
-  
-  input <- dplyr::rename(input, !!old_names)
-  input <- dplyr::mutate(input, Intensity = as.numeric(Intensity))
-  
-  if (is.character(dplyr::pull(dplyr::collect(head(dplyr::select(input, Excluded))), Excluded))) {
-    input <- dplyr::mutate(input, Excluded = Excluded == "True")
+
+  present_orig <- intersect(all_cols, colnames(input))
+  if (length(present_orig) == 0L) {
+    stop(sprintf(
+      paste0("cleanSpectronautChunk: none of the expected Spectronaut ",
+             "columns were found in the input batch. ",
+             "Expected any of: %s. Found: %s. ",
+             "Check that the file is comma-delimited and that the ",
+             "Spectronaut export uses the standard column names."),
+      paste(all_cols, collapse = ", "),
+      paste(colnames(input), collapse = ", ")))
   }
-  if (is.element("Identified", colnames(input))) {
-    if (is.character(dplyr::pull(dplyr::collect(head(dplyr::select(input, Identified))), Identified))) {
-      input <- dplyr::mutate(input, Identified = Identified == "True")
+  input <- input[, present_orig, with = FALSE]
+
+  data.table::setnames(input, MSstatsConvert:::.standardizeColnames(colnames(input)))
+  spectronaut_to_msstats_col_mapping <- stats::setNames(new_names,
+                                    MSstatsConvert:::.standardizeColnames(all_cols))
+  data.table::setnames(input,
+                       old = names(spectronaut_to_msstats_col_mapping),
+                       new = unname(spectronaut_to_msstats_col_mapping),
+                       skip_absent = TRUE)
+
+  input[, Intensity := as.numeric(Intensity)]
+
+  if (is.character(input[["Excluded"]])) {
+    input[, Excluded := Excluded == "True"]
+  }
+  if ("Identified" %in% colnames(input) && is.character(input[["Identified"]])) {
+    input[, Identified := Identified == "True"]
+  }
+
+  msstats_to_spectronaut_col_mapping <- stats::setNames(all_cols, new_names)
+  require_filter_cols <- function(cols, filter_name) {
+    missing <- setdiff(cols, colnames(input))
+    if (length(missing) > 0L) {
+      stop(sprintf(
+        paste0("cleanSpectronautChunk: %s needs Spectronaut column(s) %s, ",
+               "which were not found in the input export. Found: %s."),
+        filter_name,
+        paste(msstats_to_spectronaut_col_mapping[missing], collapse = ", "),
+        paste(colnames(input), collapse = ", ")))
     }
   }
-  
+
   if (filter_by_excluded) {
-    input <- dplyr::mutate(
-      input, Intensity = dplyr::if_else(Excluded, NA_real_, Intensity))
-    
+    require_filter_cols("Excluded", "filter_by_excluded")
+    input[Excluded == TRUE, Intensity := NA_real_]
   }
-  
   if (filter_by_identified) {
-    input <- dplyr::mutate(
-      input, Intensity = dplyr::if_else(Identified, Intensity, NA_real_))
+    require_filter_cols("Identified", "filter_by_identified")
+    input[Identified == FALSE, Intensity := NA_real_]
   }
-  
   if (filter_by_qvalue) {
-    input <- dplyr::mutate(
-      input,
-      Intensity = dplyr::if_else(EGQvalue < qvalue_cutoff, Intensity, NA_real_))
-    input <- dplyr::mutate(
-      input, 
-      Intensity = dplyr::if_else(PGQvalue < qvalue_cutoff, Intensity, NA_real_))
+    require_filter_cols(c("EGQvalue", "PGQvalue"), "filter_by_qvalue")
+    input[is.na(EGQvalue) | EGQvalue >= qvalue_cutoff, Intensity := NA_real_]
+    input[is.na(PGQvalue) | PGQvalue >= qvalue_cutoff, Intensity := NA_real_]
   }
-  
-  input <- dplyr::filter(input, FFrgLossType == "noloss")
-  if (is.element("LabeledSequence", colnames(input))) {
-    input <- dplyr::mutate(input, IsLabeled = grepl("Lys8", LabeledSequence) | grepl("Arg10", LabeledSequence))
-    input <- dplyr::mutate(input, IsotopeLabelType := dplyr::if_else(IsLabeled, "H", "L"))
-  } else {
-    input <- dplyr::mutate(input, IsotopeLabelType = "L")
+
+  require_filter_cols("FFrgLossType", "the noloss fragment-loss filter")
+  input <- input[FFrgLossType == "noloss"]
+  input[, IsotopeLabelType := "L"]
+
+  select_cols <- c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
+                   "ProductCharge", "IsotopeLabelType", "Run", "BioReplicate", "Condition",
+                   "Intensity")
+  if (calculateAnomalyScores) {
+    select_cols <- c(select_cols,
+                     MSstatsConvert:::.standardizeColnames(anomalyModelFeatures))
   }
-  
-  select_cols = c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
-                  "ProductCharge", "IsotopeLabelType", "Run", "BioReplicate", "Condition",
-                  "Intensity")
-  if (calculateAnomalyScores){
-    select_cols = c(select_cols, 
-                    MSstatsConvert:::.standardizeColnames(anomalyModelFeatures))
-  }
-  
-  input <- dplyr::select(input, select_cols)
+
+  input <- input[, select_cols, with = FALSE]
   .writeChunkToFile(input, output_path, pos)
   NULL
 }

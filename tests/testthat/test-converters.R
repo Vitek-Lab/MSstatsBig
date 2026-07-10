@@ -94,45 +94,254 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
 
-test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from annotation", {
-  stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", function(input_file, output_path, ...) {
+make_spectronaut_input <- function(n = 1L, ...) {
+  base <- data.frame(
+    R.FileName = rep("run1", n),
+    R.Condition = "A",
+    R.Replicate = 1L,
+    PG.ProteinAccessions = "P1",
+    EG.ModifiedSequence = paste0("PEP", seq_len(n)),
+    FG.LabeledSequence = paste0("PEP", seq_len(n)),
+    FG.Charge = 2L,
+    F.FrgIon = "y1",
+    F.Charge = 1L,
+    EG.Identified = "True",
+    F.ExcludedFromQuantification = "False",
+    F.FrgLossType = "noloss",
+    PG.Qvalue = 0.001,
+    EG.Qvalue = 0.001,
+    F.NormalizedPeakArea = seq_len(n) * 100,
+    stringsAsFactors = FALSE
+  )
+  overrides <- list(...)
+  for (col in names(overrides)) base[[col]] <- overrides[[col]]
+  base
+}
+
+test_that("cleanSpectronautChunk produces the expected MSstats schema", {
+  input <- make_spectronaut_input(n = 1L)
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L)
+  result <- readr::read_csv(output_file, show_col_types = FALSE)
+
+  expected_cols <- c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
+                     "ProductCharge", "IsotopeLabelType", "Run", "BioReplicate", "Condition",
+                     "Intensity")
+  expect_setequal(colnames(result), expected_cols)
+  expect_equal(nrow(result), 1L)
+  expect_equal(result$Intensity, 100)
+  expect_equal(result$IsotopeLabelType, "L")
+})
+
+test_that("cleanSpectronautChunk filter_by_excluded sets Intensity to NA on excluded rows", {
+  input <- make_spectronaut_input(
+    n = 2L,
+    F.ExcludedFromQuantification = c("True", "False"),
+    F.NormalizedPeakArea = c(100, 200)
+  )
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                     filter_by_excluded = TRUE,
+                                     filter_by_qvalue = FALSE)
+  result <- readr::read_csv(output_file, show_col_types = FALSE)
+  result <- result[order(result$PeptideSequence), ]
+
+  expect_true(is.na(result$Intensity[1]))
+  expect_equal(result$Intensity[2], 200)
+})
+
+test_that("cleanSpectronautChunk filter_by_identified sets Intensity to NA on unidentified rows", {
+  input <- make_spectronaut_input(
+    n = 2L,
+    EG.Identified = c("True", "False"),
+    F.NormalizedPeakArea = c(100, 200)
+  )
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                     filter_by_identified = TRUE,
+                                     filter_by_qvalue = FALSE)
+  result <- readr::read_csv(output_file, show_col_types = FALSE)
+  result <- result[order(result$PeptideSequence), ]
+
+  expect_equal(result$Intensity[1], 100)
+  expect_true(is.na(result$Intensity[2]))
+})
+
+test_that("cleanSpectronautChunk filter_by_qvalue NA-aware semantics match dplyr::if_else", {
+  input <- make_spectronaut_input(
+    n = 3L,
+    EG.Qvalue = c(0.001, 0.5, NA_real_),
+    F.NormalizedPeakArea = c(100, 200, 300)
+  )
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                     filter_by_qvalue = TRUE,
+                                     qvalue_cutoff = 0.01)
+  result <- readr::read_csv(output_file, show_col_types = FALSE)
+  result <- result[order(result$PeptideSequence), ]
+
+  # PEP1: EGQvalue below cutoff -> kept
+  expect_equal(result$Intensity[1], 100)
+  # PEP2: EGQvalue above cutoff -> NA
+  expect_true(is.na(result$Intensity[2]))
+  # PEP3: EGQvalue NA -> NA (preserves dplyr::if_else semantics)
+  expect_true(is.na(result$Intensity[3]))
+})
+
+test_that("cleanSpectronautChunk drops rows where FFrgLossType != noloss", {
+  input <- make_spectronaut_input(
+    n = 3L,
+    F.FrgLossType = c("noloss", "H2O", "noloss")
+  )
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                     filter_by_qvalue = FALSE)
+  result <- readr::read_csv(output_file, show_col_types = FALSE)
+
+  expect_equal(nrow(result), 2L)
+  expect_setequal(result$PeptideSequence, c("PEP1", "PEP3"))
+})
+
+test_that("cleanSpectronautChunk fails fast with a clear error when a filter column is absent", {
+  output_file <- tempfile(fileext = ".csv")
+  on.exit(unlink(output_file, force = TRUE), add = TRUE)
+
+  # FFrgLossType filter always runs: dropping the source column must error,
+  # naming the original Spectronaut column, not raise a cryptic data.table error.
+  input <- make_spectronaut_input(n = 1L)
+  input$F.FrgLossType <- NULL
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(input, output_file, pos = 1L,
+                                       filter_by_qvalue = FALSE),
+    regexp = "F.FrgLossType")
+
+  # q-value filter only errors when it is actually requested.
+  input_noq <- make_spectronaut_input(n = 1L)
+  input_noq$EG.Qvalue <- NULL
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(input_noq, output_file, pos = 1L,
+                                       filter_by_qvalue = TRUE),
+    regexp = "EG.Qvalue")
+
+  # ...and is tolerated when the q-value filter is switched off.
+  expect_error(
+    MSstatsBig:::cleanSpectronautChunk(make_spectronaut_input(n = 1L),
+                                       output_file, pos = 1L,
+                                       filter_by_qvalue = FALSE),
+    NA)
+})
+
+test_that("reduceBigSpectronaut projects out columns cleanSpectronautChunk does not use", {
+  # Real Spectronaut columns plus two junk columns that are not in needed_cols.
+  input <- make_spectronaut_input(n = 2L)
+  input$JunkA <- "zzz"
+  input$JunkB <- 999L
+  input_file <- tempfile(fileext = ".csv")
+  output_file <- tempfile()
+  on.exit({
+    unlink(input_file, force = TRUE)
+    unlink(output_file, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  readr::write_csv(input, input_file)
+
+  # Capture the columns of each batch actually handed to the cleaner. The
+  # Scanner projection should have dropped JunkA/JunkB before this point.
+  captured <- new.env(parent = emptyenv())
+  captured$cols <- NULL
+  stub(reduceBigSpectronaut, "cleanSpectronautChunk",
+       function(input, ...) {
+         captured$cols <- colnames(input)
+         NULL
+       })
+
+  reduceBigSpectronaut(input_file, output_file)
+
+  expect_false("JunkA" %in% captured$cols)
+  expect_false("JunkB" %in% captured$cols)
+  # Needed columns still make it through.
+  expect_true("F.NormalizedPeakArea" %in% captured$cols)
+  expect_true("PG.ProteinAccessions" %in% captured$cols)
+})
+
+test_that("reduceBigSpectronaut rejects invalid block_size values", {
+  input_file <- tempfile(fileext = ".csv")
+  writeLines("a,b\n1,2", input_file)
+  output_file <- tempfile()
+  on.exit({
+    unlink(input_file, force = TRUE)
+    unlink(output_file, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = -1L),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = 0L),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = NA_integer_),
+               regexp = "block_size")
+  expect_error(reduceBigSpectronaut(input_file, output_file, block_size = c(1L, 2L)),
+               regexp = "block_size")
+  expect_error(suppressWarnings(
+    reduceBigSpectronaut(input_file, output_file, block_size = "16MB")
+  ), regexp = "block_size")
+})
+
+test_that("bigSpectronauttoMSstatsFormat plumbs block_size through to reduceBigSpectronaut", {
+  captured <- new.env(parent = emptyenv())
+  captured$block_size <- NULL
+
+  spy_reduce <- function(input_file, output_path, intensity, filter_by_excluded,
+                        filter_by_identified, filter_by_qvalue, qvalue_cutoff,
+                        calculateAnomalyScores, anomalyModelFeatures,
+                        block_size = 16L * 1024L * 1024L) {
+    captured$block_size <- block_size
     msstats_data <- data.frame(
       ProteinName = "P1", PeptideSequence = "PEPTIDE", PrecursorCharge = 2,
       FragmentIon = "frag1", ProductCharge = 1,
-      IsotopeLabelType = "L",
-      Condition = "FROM_SPECTRONAUT", BioReplicate = 999,
-      Run = rep(c("run1", "run2"), each = 1),
-      Intensity = c(1000, 2000)
+      IsotopeLabelType = "L", Condition = "A", BioReplicate = 1,
+      Run = "run1", Intensity = 100
     )
     readr::write_csv(msstats_data, output_path)
-  })
+  }
 
   input_file <- "dummy_spectro_input.csv"
-  output_file <- "spectro_output_annot.csv"
 
-  annotation <- data.frame(
-    Run = c("run1", "run2"),
-    BioReplicate = c(7L, 8L),
-    Condition = c("ctrl", "treat"),
-    stringsAsFactors = FALSE
-  )
-
-  processed <- bigSpectronauttoMSstatsFormat(
+  # Default forwards 16 MiB.
+  stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", spy_reduce)
+  output_file_default <- tempfile(fileext = ".csv")
+  on.exit({
+    unlink(output_file_default, recursive = TRUE, force = TRUE)
+    unlink(paste0("reduce_output_", basename(output_file_default)),
+           recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  bigSpectronauttoMSstatsFormat(
     input_file = input_file,
-    annotation = annotation,
-    output_file_name = output_file,
-    backend = "arrow",
-    max_feature_count = 1
+    output_file_name = output_file_default,
+    backend = "arrow"
   )
-  result <- dplyr::collect(processed)
-  result <- result[order(result$Run), ]
+  expect_identical(captured$block_size, 16L * 1024L * 1024L)
 
-  expect_equal(result$Condition, c("ctrl", "treat"))
-  expect_equal(result$BioReplicate, c(7L, 8L))
-  expect_false(any(result$Condition == "FROM_SPECTRONAUT"))
-  expect_false(any(result$BioReplicate == 999))
-
-  # Cleanup
-  unlink(output_file, recursive = TRUE, force = TRUE)
-  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
+  # Override forwards the user's value.
+  output_file_override <- tempfile(fileext = ".csv")
+  on.exit({
+    unlink(output_file_override, recursive = TRUE, force = TRUE)
+    unlink(paste0("reduce_output_", basename(output_file_override)),
+           recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  bigSpectronauttoMSstatsFormat(
+    input_file = input_file,
+    output_file_name = output_file_override,
+    backend = "arrow",
+    block_size = 8L * 1024L * 1024L
+  )
+  expect_identical(captured$block_size, 8L * 1024L * 1024L)
 })
