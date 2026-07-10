@@ -1,4 +1,5 @@
 #' @importFrom data.table := .SD setDT setnames
+#' @importFrom stats setNames
 NULL
 
 #' @keywords internal
@@ -22,9 +23,6 @@ reduceBigSpectronaut <- function(input_file, output_path,
     delim <- ";"
   }
 
-  # Columns cleanSpectronautChunk actually consumes; Arrow's
-  # convert_options$include_columns drops everything else at parse time so
-  # we never materialize the ~35 unused columns Spectronaut exports.
   needed_cols <- c("R.FileName", "R.Condition", "R.Replicate",
                    "PG.ProteinAccessions", "EG.ModifiedSequence",
                    "FG.LabeledSequence", "FG.Charge",
@@ -36,13 +34,6 @@ reduceBigSpectronaut <- function(input_file, output_path,
     needed_cols <- c(needed_cols, anomalyModelFeatures)
   }
 
-  # Arrow's CSV reader replaces readr::read_delim_chunked.  Arrow releases
-  # per-batch state as soon as a batch is consumed, so peak memory is
-  # bounded by one record batch instead of growing with the dataset (readr
-  # keeps a string-interning pool that accumulates across chunks).  The
-  # `delim` switch above already covers comma / tab / semicolon variants;
-  # Arrow's CSV reader handles all three the same way through
-  # CsvParseOptions$delimiter.
   parse_opts   <- arrow::CsvParseOptions$create(delimiter = delim)
   convert_opts <- arrow::CsvConvertOptions$create()
   read_opts    <- arrow::CsvReadOptions$create(block_size = block_size)
@@ -55,14 +46,7 @@ reduceBigSpectronaut <- function(input_file, output_path,
     read_options    = read_opts
   )
 
-  # Project to only the columns cleanSpectronautChunk consumes. Scanner
-  # projection (not CsvConvertOptions$include_columns, which collides with the
-  # open_dataset schema layer) is the mechanism that works with the dataset
-  # API. intersect() keeps only columns actually present so a partial export
-  # still runs instead of erroring, matching cleanSpectronautChunk's handling.
   present_cols <- intersect(needed_cols, names(ds))
-  # Scanner applies the projection; ToRecordBatchReader() then yields one
-  # projected batch at a time on demand, keeping peak memory to a single batch.
   scanner <- arrow::Scanner$create(ds, projection = present_cols)
   reader <- scanner$ToRecordBatchReader()
 
@@ -152,14 +136,12 @@ cleanSpectronautChunk = function(input, output_path,
   }
   input <- input[, present_orig, with = FALSE]
 
-  # Two-step rename matching the MSstatsConvert family pattern: standardize
-  # all column names, then map standardized -> MSstats final names.
   data.table::setnames(input, MSstatsConvert:::.standardizeColnames(colnames(input)))
-  std_to_msstats <- stats::setNames(new_names,
+  spectronaut_to_msstats_col_mapping <- stats::setNames(new_names,
                                     MSstatsConvert:::.standardizeColnames(all_cols))
   data.table::setnames(input,
-                       old = names(std_to_msstats),
-                       new = unname(std_to_msstats),
+                       old = names(spectronaut_to_msstats_col_mapping),
+                       new = unname(spectronaut_to_msstats_col_mapping),
                        skip_absent = TRUE)
 
   input[, Intensity := as.numeric(Intensity)]
@@ -171,10 +153,7 @@ cleanSpectronautChunk = function(input, output_path,
     input[, Identified := Identified == "True"]
   }
 
-  # Fail fast if a filter's source column is absent, rather than letting
-  # data.table raise a cryptic "object not found" mid-run. The message reports
-  # the original Spectronaut column name (what the user controls in the export).
-  msstats_to_spectronaut <- stats::setNames(all_cols, new_names)
+  msstats_to_spectronaut_col_mapping <- stats::setNames(all_cols, new_names)
   require_filter_cols <- function(cols, filter_name) {
     missing <- setdiff(cols, colnames(input))
     if (length(missing) > 0L) {
@@ -182,7 +161,7 @@ cleanSpectronautChunk = function(input, output_path,
         paste0("cleanSpectronautChunk: %s needs Spectronaut column(s) %s, ",
                "which were not found in the input export. Found: %s."),
         filter_name,
-        paste(msstats_to_spectronaut[missing], collapse = ", "),
+        paste(msstats_to_spectronaut_col_mapping[missing], collapse = ", "),
         paste(colnames(input), collapse = ", ")))
     }
   }
