@@ -176,21 +176,13 @@ cleanSpectronautChunk = function(input, output_path,
   }
   if (filter_by_qvalue) {
     require_filter_cols(c("EGQvalue", "PGQvalue"), "filter_by_qvalue")
-    # Preserve dplyr::if_else semantics: rows with NA q-values become NA.
     input[is.na(EGQvalue) | EGQvalue >= qvalue_cutoff, Intensity := NA_real_]
     input[is.na(PGQvalue) | PGQvalue >= qvalue_cutoff, Intensity := NA_real_]
   }
 
   require_filter_cols("FFrgLossType", "the noloss fragment-loss filter")
   input <- input[FFrgLossType == "noloss"]
-
-  if ("LabeledSequence" %in% colnames(input)) {
-    input[, IsotopeLabelType := ifelse(
-      grepl("Lys8", LabeledSequence) | grepl("Arg10", LabeledSequence),
-      "H", "L")]
-  } else {
-    input[, IsotopeLabelType := "L"]
-  }
+  input[, IsotopeLabelType := "L"]
 
   select_cols <- c("ProteinName", "PeptideSequence", "PrecursorCharge", "FragmentIon",
                    "ProductCharge", "IsotopeLabelType", "Run", "BioReplicate", "Condition",
