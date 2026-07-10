@@ -157,11 +157,6 @@ bigFragPipetoMSstatsFormat <-  function(input_file, output_file_name,
 #'   \item `F.FrgLossType` -> used by the always-on `noloss` fragment filter
 #' }
 #'
-#' Optional:
-#' \itemize{
-#'   \item `FG.LabeledSequence` -> if present, sets IsotopeLabelType ("H" for
-#'     Lys8/Arg10 labels, otherwise "L"); if absent, IsotopeLabelType defaults to "L".
-#' }
 #'
 #' Required only when the matching filter is enabled:
 #' \itemize{
