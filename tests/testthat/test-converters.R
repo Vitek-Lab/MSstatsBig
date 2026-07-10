@@ -224,7 +224,6 @@ test_that("cleanSpectronautChunk drops rows where FFrgLossType != noloss", {
 
   expect_equal(nrow(result), 2L)
   expect_setequal(result$PeptideSequence, c("PEP1", "PEP3"))
->>>>>>> fdd7476 (add more tests)
 })
 
 test_that("cleanSpectronautChunk fails fast with a clear error when a filter column is absent", {
