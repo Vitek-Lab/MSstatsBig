@@ -23,7 +23,8 @@ Imports:
     MSstatsConvert,
     readr,
     sparklyr,
-    utils
+    utils,
+    stats
 Suggests:
     testthat,
     mockery,
