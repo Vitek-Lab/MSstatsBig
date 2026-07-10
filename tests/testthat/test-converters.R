@@ -94,7 +94,6 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
 
-<<<<<<< HEAD
 test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from annotation", {
   stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", function(input_file, output_path, ...) {
     msstats_data <- data.frame(
@@ -107,7 +106,8 @@ test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from a
     )
     readr::write_csv(msstats_data, output_path)
   })
-=======
+})
+
 make_spectronaut_input <- function(n = 1L, ...) {
   base <- data.frame(
     R.FileName = rep("run1", n),
@@ -359,38 +359,4 @@ test_that("bigSpectronauttoMSstatsFormat plumbs block_size through to reduceBigS
     block_size = 8L * 1024L * 1024L
   )
   expect_identical(captured$block_size, 8L * 1024L * 1024L)
-})
-
-# test_that("bigDIANNtoMSstatsFormat works with real MSstatsConvert tinytest data", {
-#   input_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/diann_input.tsv"
-#   annotation_file <- "/Users/rudhikshah/NorthEasternContractWork/MSstatsConvert/inst/tinytest/raw_data/DIANN/annotation.csv"
-
-  input_file <- "dummy_spectro_input.csv"
-  output_file <- "spectro_output_annot.csv"
-
-  annotation <- data.frame(
-    Run = c("run1", "run2"),
-    BioReplicate = c(7L, 8L),
-    Condition = c("ctrl", "treat"),
-    stringsAsFactors = FALSE
-  )
-
-  processed <- bigSpectronauttoMSstatsFormat(
-    input_file = input_file,
-    annotation = annotation,
-    output_file_name = output_file,
-    backend = "arrow",
-    max_feature_count = 1
-  )
-  result <- dplyr::collect(processed)
-  result <- result[order(result$Run), ]
-
-  expect_equal(result$Condition, c("ctrl", "treat"))
-  expect_equal(result$BioReplicate, c(7L, 8L))
-  expect_false(any(result$Condition == "FROM_SPECTRONAUT"))
-  expect_false(any(result$BioReplicate == 999))
-
-  # Cleanup
-  unlink(output_file, recursive = TRUE, force = TRUE)
-  unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
