@@ -94,20 +94,6 @@ test_that("bigSpectronauttoMSstatsFormat works correctly", {
   unlink(paste0("reduce_output_", output_file), recursive = TRUE, force = TRUE)
 })
 
-test_that("bigSpectronauttoMSstatsFormat overrides Condition/BioReplicate from annotation", {
-  stub(bigSpectronauttoMSstatsFormat, "reduceBigSpectronaut", function(input_file, output_path, ...) {
-    msstats_data <- data.frame(
-      ProteinName = "P1", PeptideSequence = "PEPTIDE", PrecursorCharge = 2,
-      FragmentIon = "frag1", ProductCharge = 1,
-      IsotopeLabelType = "L",
-      Condition = "FROM_SPECTRONAUT", BioReplicate = 999,
-      Run = rep(c("run1", "run2"), each = 1),
-      Intensity = c(1000, 2000)
-    )
-    readr::write_csv(msstats_data, output_path)
-  })
-})
-
 make_spectronaut_input <- function(n = 1L, ...) {
   base <- data.frame(
     R.FileName = rep("run1", n),
