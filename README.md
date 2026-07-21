@@ -63,7 +63,7 @@ summarized <- dataProcess(converted, use_log_file = FALSE)
 
 Users can also feed data into the underlying `MSstatsPreprocessBig()` function
 directly — either from a tool's native export format or by converting raw data
-chunk by chunk — to support other tools such as DIA-NN. See the workflow
+chunk by chunk — to support other tools. See the workflow
 vignette for details.
 
 ## Supported Converters
